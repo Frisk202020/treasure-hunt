@@ -2,43 +2,52 @@
 pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
-import {HuntGoalBank} from "../src/HuntGoalBank.sol";
+import {console} from "forge-std/console.sol";
 import {HuntGoal} from "../src/HuntGoal.sol";
-import {HuntTicket} from "../src/HuntTicket.sol";
+import {HuntAPI} from "../src/HuntAPI.sol";
 
 contract HuntTest is Test {
     function setUp() public {}
 
-    function testClaim() public {
-        HuntGoal goal = new HuntGoal(0, 1);
-        HuntTicket ticket = new HuntTicket();
-        goal.claim(ticket);
-        
-        HuntTicket other = new HuntTicket();
-        goal.claim(other);
-        assertEq(ticket.readOwner(), goal.readPrizeOwner(), "Expect first contestant to be the owner of prize");
+    function testIntegrity() public {
+        HuntGoal goalObj = new HuntGoal(1, 1);
+        HuntGoal goalObj2 = new HuntGoal(2, 2);
 
-        vm.expectRevert("This ticket can't claim this goal"); // because already claimed this goal
-        goal.claim(ticket);
+        address[] memory goals = new address[](2);
+        address goal = address(goalObj);
+        address goal2 = address(goalObj2);
+        goals[0] = goal;
+        goals[1] = goal2;
 
-        HuntGoal nextLevel = new HuntGoal(0, 2);
-        HuntTicket lateEntry = new HuntTicket();
+        HuntAPI api = new HuntAPI(goals);
+        address user = address(1);
 
-        nextLevel.claim(ticket);
-        assertEq(2, ticket.readLevel(), "Claim level 2");
+        /* TEST : cannot have multiple tickets for same wallet */
+        assert(api.createTicket(user)); 
+        assert(!api.createTicket(user));
 
-        vm.expectRevert("This ticket can't claim this goal"); // because level 1 should be found first
-        nextLevel.claim(lateEntry);
-    }
+        /* 
+            TEST : claim goals
+            @fails :
+                - Claim malicious goal
+                - Claim with malicious ticket
+                - Claim goals in wrong order or claim twice 
+        */
+        assertEq(api.claimGoal(goal, user), 2, "First time goal is claimed");
+        assertEq(api.claimGoal(goal, user), 0, "User can't claim same goal twice");
 
-    function testGoalIntegrity() public {
-        HuntGoal[] memory genuineGoals = new HuntGoal[](1);
-        HuntGoal genuineGoal = new HuntGoal(0, 0);
-        genuineGoals[0] = genuineGoal;
-        HuntGoalBank bank = new HuntGoalBank(genuineGoals);
+        address unauthenticatedUser = address(11);
+        assertEq(api.claimGoal(goal, unauthenticatedUser), 0, "This ticket isn't registered");
 
-        HuntGoal adversaryGoal = new HuntGoal(0, 0);
-        assertEq(bank.authenticate(genuineGoal), true, "Authenticate genuine goal");
-        assertEq(bank.authenticate(adversaryGoal), false, "Reject adversary goal");
+        address user2 = address(2);
+        api.createTicket(user2);
+        assertEq(api.claimGoal(goal2, user2), 0, "User2 should claim first goal before");
+        assertEq(api.claimGoal(goal, user2), 1, "User2 claimed goal 1 but prize has already been claimed");
+        assertEq(api.claimGoal(goal2, user2), 2, "Now User2 can claim goal 2");
+
+        HuntGoal unauthenticatedGoal = new HuntGoal(3, 3);
+        assertEq(api.claimGoal(address(unauthenticatedGoal), user2), 0, "Goal is malicious");
+
+        console.logUint(user.balance);
     }
 }
