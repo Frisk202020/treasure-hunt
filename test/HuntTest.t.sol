@@ -6,48 +6,93 @@ import {console} from "forge-std/console.sol";
 import {HuntGoal} from "../src/HuntGoal.sol";
 import {HuntAPI} from "../src/HuntAPI.sol";
 
+/*
+ TODO :
+    - Try automatic ETH delivery (use vm.deal on API)
+    - Check BalanceError events
+*/
 contract HuntTest is Test {
-    function setUp() public {}
+    address[] bank;
+    HuntAPI api;
+    uint160 nextAddress;
 
-    function testIntegrity() public {
-        HuntGoal goalObj = new HuntGoal(1, 1);
-        HuntGoal goalObj2 = new HuntGoal(2, 2);
+    function setUp() public {
+        HuntGoal firstGoal = new HuntGoal(1, 1);
+        address firstGoalAddress = address(firstGoal);
 
-        address[] memory goals = new address[](2);
-        address goal = address(goalObj);
-        address goal2 = address(goalObj2);
-        goals[0] = goal;
-        goals[1] = goal2;
+        HuntGoal secondGoal = new HuntGoal(2, 2);
+        address secondGoalAddress = address(secondGoal);
 
-        HuntAPI api = new HuntAPI(goals);
-        address user = address(1);
+        bank = new address[](2);
+        bank[0] = firstGoalAddress;
+        bank[1] = secondGoalAddress;
 
-        /* TEST : cannot have multiple tickets for same wallet */
-        assert(api.createTicket(user)); 
+        api = new HuntAPI(bank);
+        vm.deal(address(api), 1);
+        nextAddress = 1000;
+    }
+
+    function createUser() public returns (address payable) {
+        nextAddress++;
+        address payable user = payable(address(nextAddress));
+        api.createTicket(user);
+        return user;
+    }
+
+    function test_cannotCreateTicketTwice() public {
+        address payable user = createUser(); // creates a ticket for that user
         assert(!api.createTicket(user));
+    }
 
-        /* 
-            TEST : claim goals
-            @fails :
-                - Claim malicious goal
-                - Claim with malicious ticket
-                - Claim goals in wrong order or claim twice 
+    function test_needTicketToClaim() public {
+        address payable user = createUser(); // creates ticket
+        address payable userNoTicket = payable(address(2));
+        assert(api.claimGoal(bank[0], user) > 0);
+        assertEq(api.claimGoal(bank[0], userNoTicket), 0);
+    }
+
+    function test_cannotClaimUnofficialGoal() public {
+        address payable user = createUser();
+        assert(api.claimGoal(bank[0], user) > 0);
+
+        HuntGoal goal = new HuntGoal(2, 2); // setting level 2 because user
+        assertEq(api.claimGoal(address(goal), user), 0);
+    }
+
+    function test_goalOrder() public {
+        address payable user = createUser();
+        assertEq(api.claimGoal(bank[1], user), 0); // can't claim second goal first
+        assert(api.claimGoal(bank[0], user) > 0);
+        assertEq(api.claimGoal(bank[0], user), 0); // can't claim twice
+        assert(api.claimGoal(bank[1], user) > 0);
+    }
+
+    function test_rewardOwnership() public {
+        address payable winner = createUser();
+        address payable loser = createUser();
+        assertEq(api.claimGoal(bank[0], winner), 2);
+        assertEq(api.claimGoal(bank[0], loser), 1);
+    }
+
+    function test_etherTransfer() public {
+        address payable user = createUser();
+        api.claimGoal(bank[0], user);
+        assertEq(user.balance, 1);
+        assertEq(address(api).balance, 0); // initialized at 1
+    }
+
+    function test_balanceErrorEvent() public {
+        address payable user = createUser();
+        api.claimGoal(bank[0], user);
+
+        /*
+            Topic[0] : hash(BalanceEvent(.))
+            Topic[1] : First indexed parameter (wallet)
+            Topic[2] : Second indexed parameter (amount)
+            Data : ABI-encoded message
         */
-        assertEq(api.claimGoal(goal, user), 2, "First time goal is claimed");
-        assertEq(api.claimGoal(goal, user), 0, "User can't claim same goal twice");
-
-        address unauthenticatedUser = address(11);
-        assertEq(api.claimGoal(goal, unauthenticatedUser), 0, "This ticket isn't registered");
-
-        address user2 = address(2);
-        api.createTicket(user2);
-        assertEq(api.claimGoal(goal2, user2), 0, "User2 should claim first goal before");
-        assertEq(api.claimGoal(goal, user2), 1, "User2 claimed goal 1 but prize has already been claimed");
-        assertEq(api.claimGoal(goal2, user2), 2, "Now User2 can claim goal 2");
-
-        HuntGoal unauthenticatedGoal = new HuntGoal(3, 3);
-        assertEq(api.claimGoal(address(unauthenticatedGoal), user2), 0, "Goal is malicious");
-
-        console.logUint(user.balance);
+        vm.expectEmit(true, true, true, true);
+        emit HuntAPI.BalanceError(user, 2);
+        api.claimGoal(bank[1], user);
     }
 }

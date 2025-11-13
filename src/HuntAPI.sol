@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 interface IGoal {
     function readLevel() external view returns (uint);
+    function readValue() external view returns (uint);
     function claim() external returns (bool);
 }
 
@@ -15,7 +16,7 @@ contract HuntAPI {
         goals = _goals;
     }
 
-    function createTicket(address wallet) external returns (bool) {
+    function createTicket(address payable wallet) external returns (bool) {
         if (tickets[wallet] > 0) { return false; } // this wallet already has a ticket
 
         tickets[wallet] = 1;
@@ -31,7 +32,7 @@ contract HuntAPI {
         return false;
     }
 
-    function claimGoal(address goal, address wallet) external returns (uint) {
+    function claimGoal(address goal, address payable wallet) external returns (uint) {
         if (!authenticateGoal(goal)) { return 0; }
 
         IGoal goalObj = IGoal(goal);
@@ -39,8 +40,16 @@ contract HuntAPI {
 
         tickets[wallet]++;
         if (goalObj.claim()) {
+            send(wallet, goalObj.readValue());
             return 2;
         } 
         return 1; 
     }
+
+    function deposit() payable external {}
+    function send(address payable wallet, uint amount) private {
+        if (address(this).balance < amount) { emit BalanceError(wallet, amount); return; }
+        wallet.transfer(amount);
+    } 
+    event BalanceError(address indexed winner, uint indexed amount);
 }

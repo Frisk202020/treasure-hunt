@@ -15,6 +15,9 @@ contract HuntGoal {
     function readLevel() external view returns (uint) {
         return level;
     }
+    function readValue() external view returns (uint) {
+        return value;
+    }
 
     //event alertClaim(address winner);
     function claim() external returns (bool) {
