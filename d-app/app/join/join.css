@@ -1,0 +1,14 @@
+.enabled {
+    background-color: gold;
+    color: black;
+}
+.disabled {
+    background-color: grey;
+} .disabled:hover {
+    cursor:not-allowed;
+}
+.btn-box {
+    display: flex;
+    justify-content: space-around;
+    width: 100vw;
+}
