@@ -12,10 +12,33 @@
   }
 }
 
+@font-face {
+  font-family: hello;
+  src: url("../public/heygorgeous.ttf");
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  font-family:'hello', Courier, monospace;
+}
+
+#main {
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+} #main * {
+    margin: 10px;
+    line-height: 3;
+} .more-margin {
+    margin-top: 30px !important;
+}
+
+.error {
+  color: #c71818;
+  font-weight: bold;
 }
 
 button {
@@ -25,7 +48,7 @@ button {
   cursor: pointer;
 }
 
-.rainbow-text {
+.rainbow {
   font-weight: bold;
 
   background: linear-gradient(
@@ -45,10 +68,53 @@ button {
 
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: rainbow-move 10s linear infinite;
+  animation: bg-move 10s linear infinite;
+} 
+
+.gold {
+  font-weight: bold;
+
+  background: linear-gradient(
+    90deg,
+    gold,
+    #ffcd42,
+    #fedc80,
+    white,
+    #fedc80,
+    #ffcd42,
+    gold
+  );
+
+  background-size: 300% 100%;
+  background-position: 0% 50%;
+
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: bg-move 10s linear infinite;
 }
 
-@keyframes rainbow-move {
+.blue {
+  font-weight: bold;
+
+  background: linear-gradient(
+    90deg,
+    #0de7fb,
+    #5fedfa,
+    #99f3fb,
+    #0de7fb,
+    #5fedfa,
+    #99f3fb
+  );
+
+  background-size: 300% 100%;
+  background-position: 0% 50%;
+
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: bg-move 10s linear infinite;
+}
+
+@keyframes bg-move {
   0% {
     background-position: 0% 50%;
   }
@@ -57,3 +123,55 @@ button {
   }
 }
 
+#navigation {
+  display: flex;
+  justify-content: space-evenly;
+  position: fixed;
+  bottom: 0px;
+  width: 100vw;
+  border-top: white 2px solid;
+  background-color: #0a0a0a;
+}
+
+#navigation a {
+  width: 25vw;
+  font-size: large;
+  border-left: white 2px solid;
+  border-right: white 2px solid;
+  text-align: center;
+  padding: 10px;
+}
+
+#navigation a:hover {
+  background-color: #545151;
+}
+
+h1 {
+  width: 100vw;
+  text-align: center;
+  font-size: 40px;
+  padding: 20px;
+}
+
+button {
+  font-weight: bold;
+  color: #0a0475;
+
+  background: linear-gradient(
+    90deg,
+    gold,
+    #ffcd42,
+    #fedc80,
+    white,
+    #fedc80,
+    #ffcd42,
+    gold
+  );
+
+  background-size: 300% 100%;
+  background-position: 0% 50%;
+
+} button:hover {
+  animation: bg-move 10s linear infinite;
+  cursor: pointer;
+}

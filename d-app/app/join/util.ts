@@ -1,6 +1,9 @@
 export enum PageState {
-    NoMetaMask,
     Default,
+    NoMetaMask,
+    MetaMaskPending,
+    MetaMaskConnected,
+    Canceled,
     TicketClaimed,
     TicketClaimPending,
     DuplicateClaim,

@@ -11,7 +11,7 @@ interface Args {
     registeredAddresses: Set<string>;
 }
 export default function Client(args: Args) {
-    const [state, setState] = useState(PageState.NoMetaMask);
+    const [state, setState] = useState(PageState.Default);
 
     const [renderer, setRenderer] = useState(initRenderer(setState, args.registeredAddresses));
     const page = renderer.render(state);
@@ -24,7 +24,9 @@ export default function Client(args: Args) {
                 params: [{ chainId: '0xaa36a7' }],      
             });
             setRenderer(renderer.withProvider(new BrowserProvider(eth), setRenderer));
-            setState(PageState.Default);
+            setState(PageState.MetaMaskPending);
+        } else {
+            setState(PageState.NoMetaMask);
         }
     }, []);
 

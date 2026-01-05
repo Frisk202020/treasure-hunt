@@ -1,81 +1,26 @@
-import Image from "next/image";
+import { getData } from "./actions";
+import "./globals.css";
 
-export default function Home() {
+// TODO - /goals route
+// TODO - /hints route
+
+export default async function Home() {
+  const data= await getData();
+
   return <>
-    <h1>Welcome to Treasure Hunt !</h1>
-    <p>**Descrition**</p>
-    <div>
-      <p>**Global progress**</p>
-    </div>
+    <h1 className="rainbow">Welcome to Treasure Hunt !</h1>
+    
+    <div id="main">
+      <p>In this game, you'll need to find codes by solving puzzles accross the internet.</p>
+      <p>Once you're the first to claim a <span className="gold">Hunt goal</span>, you'll win a cashprize !</p>
+      <p>This hunt is held on the Ethereum blockchain, winners receive Ether directly sent to their wallet.</p>
+      <p>In this current hunt, total cashprize is <span className="gold">{data.totalPot()}</span> Wei.</p>
 
-    <p>Now let's dive in !</p>
-    <li>
-      <ul><a href="/join">Join the hunt</a></ul>
-      <ul><a>Go to dashboard</a></ul>
-    </li>
+      <p className="more-margin">If you'd like to join the hunt, you can head to the <a href="join" className="blue">Join the Hunt</a> page.</p>
+      <p>When you find a goal, you can claim a prize in the <a href="goals" className="blue">Claim a Hunt goal</a> page.</p>
+      <p>And you can find guidelines to find goals in the <a href="hints" className="blue">Hints</a> page.</p>
+
+      <p>Have fun !</p>
+    </div>
   </>
 }
-
-// export default function Home() {
-//   return (
-//     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-//       <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-//         <Image
-//           className="dark:invert"
-//           src="/next.svg"
-//           alt="Next.js logo"
-//           width={100}
-//           height={20}
-//           priority
-//         />
-//         <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-//           <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-//             To get started, edit the page.tsx file.
-//           </h1>
-//           <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-//             Looking for a starting point or more instructions? Head over to{" "}
-//             <a
-//               href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-//               className="font-medium text-zinc-950 dark:text-zinc-50"
-//             >
-//               Templates
-//             </a>{" "}
-//             or the{" "}
-//             <a
-//               href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-//               className="font-medium text-zinc-950 dark:text-zinc-50"
-//             >
-//               Learning
-//             </a>{" "}
-//             center.
-//           </p>
-//         </div>
-//         <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-//           <a
-//             className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-//             href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-//             target="_blank"
-//             rel="noopener noreferrer"
-//           >
-//             <Image
-//               className="dark:invert"
-//               src="/vercel.svg"
-//               alt="Vercel logomark"
-//               width={16}
-//               height={16}
-//             />
-//             Deploy Now
-//           </a>
-//           <a
-//             className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-//             href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-//             target="_blank"
-//             rel="noopener noreferrer"
-//           >
-//             Documentation
-//           </a>
-//         </div>
-//       </main>
-//     </div>
-//   );
-// }
