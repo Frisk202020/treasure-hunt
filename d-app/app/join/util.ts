@@ -11,5 +11,6 @@ export enum PageState {
     ParseLogFailed,
     TryAgainPending,
     TryAgain,
-    Fatal
+    Fatal,
+    UnsufficientFunds
 } 
