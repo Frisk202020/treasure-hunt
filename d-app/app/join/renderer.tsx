@@ -1,12 +1,13 @@
 import { JsonRpcSigner, BrowserProvider, Interface } from "ethers";
 import { PageState } from "./util";
 import { TransactionRequest } from "ethers";
-import { MutateResult, Setter } from "../util-public";
+import { BANK_ADDRESS, CHAIN_ID, MutateResult, Setter } from "../util-public";
 import { tryAddTicket } from "../actions";
+import { JSX } from "react";
+
 import "./join.css";
 import "../globals.css";
 
-const BANK_ADDRESS = "0xcdED3821113e9af36eb295B7b37807CfAe5AbdF9";
 const TICKET_CLAIM = new Interface(["event TicketCreated(address user)"]);
 const UNSUFFICIENT_FUNDS = new Interface(["event UnsufficientFunds(address user, uint value)"]);
 
@@ -42,7 +43,7 @@ class Renderer {
         }));
         this.#stateSetter(PageState.Fatal);
     }
-    render(state: PageState) {
+    render(state: PageState): JSX.Element {
         switch (state) {
             case PageState.Default:
                 return <>
@@ -138,7 +139,7 @@ class Renderer {
         }
 
         const tx: TransactionRequest = {
-            chainId: 11155111,
+            chainId: CHAIN_ID,
             from: this.#signer!.address,
             to: BANK_ADDRESS,
             value: 10
