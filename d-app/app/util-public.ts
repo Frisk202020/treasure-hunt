@@ -5,15 +5,15 @@ export const BANK_ADDRESS = "0xcdED3821113e9af36eb295B7b37807CfAe5AbdF9";
 export const CHAIN_ID = 11155111;
 
 export class Data {
-    #goals: Goal[];
+    #goals: RichGoal[];
     #tickets: Ticket[];
 
-    constructor(goals: Goal[], tickets: Ticket[]) { 
+    constructor(goals: RichGoal[], tickets: Ticket[]) { 
         this.#goals = goals; this.#tickets = tickets;
     }
 
     get goals(): Readonly<Goal[]> {
-        return this.#goals;
+        return this.#goals.map((x)=>{return {address: x.address, value: x.value}});
     }
 
     totalPot(): number {
@@ -26,6 +26,16 @@ export class Data {
         return new Set(this.#tickets.map((x)=>x.address));
     }
 
+    getTicketLevel(address: string): number {
+        for (const t of this.#tickets) {
+            if (t.address === address) {
+                return t.level;
+            }
+        }
+
+        return -1;
+    }
+
     addAddressAndFormat(address: string) {
         this.#tickets.push({address, level: 1});
         return JSON.stringify({
@@ -35,6 +45,11 @@ export class Data {
     }
 }
 
+interface RichGoal {
+    address: string,
+    value: number,
+    key: number
+}
 export interface Goal {
     address: string,
     value: number,

@@ -175,3 +175,9 @@ button {
   animation: bg-move 10s linear infinite;
   cursor: pointer;
 }
+
+.box {
+    border-radius: 10px;
+    border: 2px white solid;
+    background-color: #383737;
+}

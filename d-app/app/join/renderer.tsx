@@ -4,8 +4,6 @@ import { TransactionRequest } from "ethers";
 import { BANK_ADDRESS, CHAIN_ID, MutateResult, Setter } from "../util-public";
 import { tryAddTicket } from "../actions";
 import { JSX } from "react";
-
-import "./join.css";
 import "../globals.css";
 
 const TICKET_CLAIM = new Interface(["event TicketCreated(address user)"]);
@@ -77,7 +75,7 @@ class Renderer {
             case PageState.TicketClaimPending:
                 return <>
                     <p>Claiming ticket for address <span className="gold">{this.#signer!.address}</span>...</p>
-                    <div className="tx">
+                    <div className="box">
                         <p style={{textAlign: "center"}}>Transaction details</p>
                         <p>Sender: {this.#signer!.address}</p>
                         <p>Target: {BANK_ADDRESS}</p>

@@ -4,7 +4,6 @@ import Client from "./client";
 
 export default async function SuperSecretPage() {
     const data = await getData();
-    
 
     return <>
         <h1 className="rainbow">Super Secret Organizer Page</h1>
