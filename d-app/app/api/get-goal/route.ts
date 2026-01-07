@@ -1,3 +1,5 @@
+"use server";
+
 import { getData } from "@/app/actions";
 import { NextResponse } from "next/server";
 
@@ -18,6 +20,6 @@ export async function GET(request: Request): Promise<NextResponse> {
     if (goal === undefined) {
         return NextResponse.json({code: 2}, {status: 500});
     } else {
-        return NextResponse.json({address: goal.address, value: goal.value});
+        return NextResponse.json({address: goal.address, value: goal.value, level});
     }
 }

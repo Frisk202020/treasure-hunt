@@ -177,7 +177,13 @@ button {
 }
 
 .box {
-    border-radius: 10px;
-    border: 2px white solid;
-    background-color: #383737;
+  border-radius: 10px;
+  border: 2px white solid;
+  background-color: #383737;
+}
+
+input {
+  border: solid 2px white;
+  border-radius: 10px;
+  padding: 5px;
 }

@@ -7,13 +7,19 @@ export const CHAIN_ID = 11155111;
 export class Data {
     #goals: RichGoal[];
     #tickets: Ticket[];
+    #key: string;
+    #address: string;
 
-    constructor(goals: RichGoal[], tickets: Ticket[]) { 
-        this.#goals = goals; this.#tickets = tickets;
+    constructor(goals: RichGoal[], tickets: Ticket[], key: string, address: string) { 
+        this.#goals = goals; this.#tickets = tickets; this.#key = key; this.#address = address;
     }
 
     get goals(): Readonly<Goal[]> {
         return this.#goals.map((x)=>{return {address: x.address, value: x.value}});
+    } get key() {
+        return this.#key;
+    } get address() {
+        return this.#address;
     }
 
     totalPot(): number {
@@ -38,9 +44,25 @@ export class Data {
 
     addAddressAndFormat(address: string) {
         this.#tickets.push({address, level: 1});
+        return this.#format();
+    }
+    upgradeAndFormat(address: string) {
+        this.#tickets.forEach((x)=>{
+            if (x.address === address) { x.level++; }
+        });
+        return this.#format();
+    }
+
+    getNonce(id: number) {
+        return this.#goals[id].key;
+    }
+
+    #format(): string {
         return JSON.stringify({
             goals: this.#goals,
-            tickets: this.#tickets
+            tickets: this.#tickets,
+            key: this.#key,
+            address: this.#address
         }, null, 2);
     }
 }
