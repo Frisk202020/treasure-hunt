@@ -6,30 +6,42 @@ import {console} from "forge-std/console.sol";
 import {HuntGoal} from "../src/HuntGoal.sol";
 import {TicketBank} from "../src/TicketBank.sol";
 
-/*
- TODO :
-    - Try automatic ETH delivery (use vm.deal on API)
-    - Check BalanceError events
+/* 
+TODO
+    - Implement the commit security on goals (hash of nonce) 
 */
+
 contract HuntTest is Test {
     address payable gameMaster;
     address goal;
     address payable ticketBank;
     uint160 nextAddress;
+    uint constant FEE = 10;
+    bytes32 constant HASH = keccak256(abi.encode(0));
 
     function setUp() public {
         gameMaster = payable(address(1000));
-        HuntGoal _goal = new HuntGoal(100, 1, gameMaster);
+        ticketBank = payable(address(new TicketBank(FEE, gameMaster)));
+        HuntGoal _goal = new HuntGoal(100, 1, HASH, gameMaster, ticketBank);
         goal = address(_goal);
+        nextAddress = 1001;     
 
-        nextAddress = 1001;
-        ticketBank = payable(address(new TicketBank(10, gameMaster)));
+        vm.prank(gameMaster);
+        (bool success,) = ticketBank.call(abi.encodeWithSignature("authorize_goal(address)", goal));
+        assert(success);
+    }
+    function authorize(address g) private returns (bool) {
+        (bool success,) = ticketBank.call(abi.encodeWithSignature("authorize_goal(address)", g));
+        return success;
+    } function claim(address g, uint n) private returns (bool) {
+        (bool success,) = g.call(abi.encodeWithSignature("claim(uint256)", n));
+        return success;
     }
 
     function createUser() public returns (address payable) {
         nextAddress++;
         address payable user = payable(address(nextAddress));
-        vm.deal(user, 10);
+        vm.deal(user, FEE);
         return user;
     }
 
@@ -42,7 +54,7 @@ contract HuntTest is Test {
         (bool success,) = ticketBank.call{value: 8}("");
         assert(success);
 
-        assertEq(user.balance, 10);
+        assertEq(user.balance, FEE);
         assertEq(ticketBank.balance, 0);
     }
 
@@ -52,17 +64,17 @@ contract HuntTest is Test {
 
         vm.expectEmit(true, true, true, true);
         emit TicketBank.TicketCreated(user);
-        (bool success,) = ticketBank.call{value: 10}("");
+        (bool success,) = ticketBank.call{value: FEE}("");
         assert(success);
 
         assertEq(user.balance, 0);
-        assertEq(ticketBank.balance, 10);
+        assertEq(ticketBank.balance, FEE);
 
         vm.prank(gameMaster);
         (bool withdraw_success,) = ticketBank.call{value: 0}(abi.encodeWithSignature("withdraw()"));
         assert(withdraw_success);
         assertEq(ticketBank.balance, 0);
-        assertEq(gameMaster.balance, 10);
+        assertEq(gameMaster.balance, FEE);
     }
 
     function test_goal_funding() public {
@@ -82,24 +94,55 @@ contract HuntTest is Test {
         assertEq(gameMaster.balance, 20); // expect overflow to be refunded
     }
 
-    // API checks beforehand user is at the correct level and has a ticket. This is not tested here, 
-    // as message is trusted because it is signed by gameMaster
     function test_claim_goal() public {
-        address payable user = createUser();
+        address g = address(new HuntGoal(0, 1, HASH, gameMaster, ticketBank));
+
+        // ensure attacker can't authorize a forged goal
+        assert(!authorize(goal));
+
+        address user = createUser();
+        vm.startPrank(user);
+        (bool success,) = ticketBank.call{value: FEE}("");
+        assert(success);
+
+        // ensure a call to unauthorized goal fails (level is ok so the issue is authentification)
+        assert(!claim(g, 0));
+
+        // add new goal
+        address g2 = address(new HuntGoal(1, 2, HASH, gameMaster, ticketBank));
         vm.startPrank(gameMaster);
+        assert(authorize(g2)); 
+
+        // ensure can't claim in wrong order
+        vm.startPrank(user);
+        assert(!claim(g2, 0));
+
+        // ensure can't claim with invalid nonce
+        assert(!claim(goal, 1));
+
+        // ensure correct claim order works
         vm.deal(goal, 100);
-        
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit(true,true,true,true);
         emit HuntGoal.GoalClaimed(goal, user);
-        bytes memory callData = abi.encodeWithSignature("claim(address)", user);
-        (bool s1,) = goal.call{value: 0}(callData);
-        assert(s1);
-        assertEq(goal.balance, 0);
-        assertEq(user.balance, 110); // user hasn't spent fee (skipped ticket claim)
+        success = claim(goal, 0);
+        assert(success);
+
+        vm.expectEmit(true,true,true,true);
+        emit HuntGoal.GoalClaimed(g2, user);
+        success = claim(g2, 0);
+        assert(success);
+
+        // ensure correct fund rewards
+        assertEq(user.balance, 100);
+
+        address u2 = createUser();
+        vm.startPrank(u2);
+        (success,) = ticketBank.call{value: FEE}("");
+        assert(success);
 
         vm.recordLogs();
-        (bool s2,) = goal.call{value: 0}(callData);
-        assert(s2);
-        assertEq(vm.getRecordedLogs().length, 0);
+        success = claim(g, 0);
+        assertEq(u2.balance, 0);
+        assertEq(vm.getRecordedLogs().length, 0); 
     }
 }

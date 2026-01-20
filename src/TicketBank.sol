@@ -8,9 +8,32 @@ pragma solidity ^0.8.13;
 contract TicketBank {
     uint entryFee;
     address payable gameMaster;
+    mapping (address=>uint) granted;
+    address[] goals;
 
     constructor(uint _entryFee, address payable _gameMaster) {
         entryFee = _entryFee; gameMaster = _gameMaster;
+    }
+
+    // checks both goal belongs to the hunt, and is correct goal to claim from this user 
+    function is_correct_goal(address user, uint level) private view returns (bool) {
+        for (uint i = 0; i < goals.length; i++) {
+            if (goals[i] == msg.sender) { return level == granted[user]; }
+        }
+
+        // don't need to worry about non-honest level value since un-authorized goals are rejected
+        return false;
+    }
+
+    function upgrade(address user, uint level) external {
+        require(is_correct_goal(user, level));
+        granted[user]++;
+    } 
+    
+    // Game master is trusted to provide correct goal (no duplicates, correct contract instance)
+    function authorize_goal(address goal) external {
+        require(msg.sender == gameMaster);
+        goals.push(goal);
     }
 
     // captured by API
@@ -28,6 +51,7 @@ contract TicketBank {
             }
         }
 
+        granted[msg.sender] = 1;
         emit TicketCreated(msg.sender);
     }
     receive() payable external { deposit(); }
