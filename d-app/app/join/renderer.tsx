@@ -6,6 +6,8 @@ import { tryAddTicket } from "../actions";
 import { JSX } from "react";
 import "../globals.css";
 
+// TODO : remove centralization of ticket db (blockchain handles)
+
 const TICKET_CLAIM = new Interface(["event TicketCreated(address user)"]);
 const UNSUFFICIENT_FUNDS = new Interface(["event UnsufficientFunds(address user, uint value)"]);
 

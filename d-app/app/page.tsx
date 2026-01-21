@@ -3,6 +3,8 @@ import "./globals.css";
 
 // TODO - /goals route
 // TODO - /hints route
+// TODO - rework /join
+// TODO - check if possible to share some code in renderer (abstract class)
 
 export default async function Home() {
   const data= await getData();

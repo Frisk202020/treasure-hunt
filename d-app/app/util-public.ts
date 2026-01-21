@@ -1,7 +1,7 @@
 import { BrowserProvider } from "ethers";
 import { Dispatch, SetStateAction } from "react";
 
-export const BANK_ADDRESS = "0xcdED3821113e9af36eb295B7b37807CfAe5AbdF9";
+export const BANK_ADDRESS = "0xB18bCf2c870AED104aB110B58E860A91E9Ec5E68";
 export const CHAIN_ID = 11155111;
 
 export class Data {

@@ -6,8 +6,12 @@ import { PageState } from "./util";
 import { TransactionRequest } from "ethers";
 import { Interface } from "ethers";
 import "../globals.css";
+import { TransactionResponse } from "ethers";
+
+// TODO : may allow multi-goal authorization / funding for less tx fee
 
 const WITHDRAW = new Interface(["function withdraw()"]).encodeFunctionData("withdraw");
+const AUTHORIZE_INTERFACE = new Interface(["function authorize_goal(address)"]);
 
 interface Constructor {
     provider?: BrowserProvider,
@@ -28,6 +32,15 @@ class Renderer {
         this.#provider = args.provider; this.#signer = args.signer; this.#stateSetter = args.stateSetter; 
         this.#setter = args.setter; this.#data = args.data;
     }
+    get #trollHandler() {
+        return (err: any)=>{
+            if (err.code !== undefined && err.code !== "ACTION_REJECTED") {
+                this.#stateSetter(PageState.Troll)
+            } else {
+                this.#stateSetter(PageState.Canceled);
+            }
+        };
+    }
 
     withProvider(provider: BrowserProvider, setter: Setter<Renderer>) {
         return new Renderer({provider, stateSetter: this.#stateSetter, setter, data: this.#data});
@@ -46,9 +59,24 @@ class Renderer {
                 <input placeholder="Goal address (0x...)" type="text" name="address"></input>
                 <input type="submit" formAction={(formData)=>{
                     const address = formData.get("address");
-                    if (!address) { this.#stateSetter(PageState.InvalidAddressFormat); }
-
-                    // TODO
+                    if (!address) { this.#stateSetter(PageState.InvalidForm); return; }
+                    
+                    const tx: TransactionRequest = {
+                        chainId: CHAIN_ID,
+                        from: this.#signer!.address,
+                        to: BANK_ADDRESS,
+                        value: 0,
+                        data: AUTHORIZE_INTERFACE.encodeFunctionData("authorize_goal", [address])
+                    };
+                    const successHandler = (res: TransactionResponse)=>{
+                        res.wait().then((receipt)=>{
+                            if (receipt == null) { this.#stateSetter(PageState.Error); }
+                            else if (receipt.blockNumber == null) { this.#stateSetter(PageState.NotMined); }
+                            else { this.#stateSetter(PageState.Authorized); }
+                        });
+                        this.#stateSetter(PageState.Pending);
+                    };
+                    sendTransaction(this.#signer!, tx, successHandler, this.#trollHandler);
                 }}></input>
             </form>
         </>;
@@ -80,10 +108,14 @@ class Renderer {
                 return <p className="gold">Goal funded !</p>
             case PageState.Pending:
                 return <p>Sending transaction, please wait...</p>
-            case PageState.InvalidAddressFormat:
+            case PageState.InvalidForm:
                 return <>
-                    <p className="error">ERROR: Empty address</p>
+                    <p className="error">ERROR: Invalid goal information</p>
                     <button onClick={()=>this.#stateSetter(PageState.Connected)}>Retry</button>
+                </>;
+            case PageState.Authorized:
+                return <>
+                    <p className="gold">Goal authorized successfully !</p>
                 </>;
         }
     }
@@ -115,23 +147,15 @@ class Renderer {
             value: 0,
             data: WITHDRAW
         };
-
-        this.#signer!.sendTransaction(tx).then((res)=>{
+        const successHandler = (res: TransactionResponse)=>{
             res.wait().then((receipt)=>{
                 if (receipt == null) { this.#stateSetter(PageState.Error); }
                 else if (receipt.blockNumber == null) { this.#stateSetter(PageState.NotMined); }
                 else { this.#stateSetter(PageState.Claimed); }
             });
             this.#stateSetter(PageState.Pending);
-        }).catch((err)=>{
-            if (err.code !== undefined && err.code !== "ACTION_REJECTED") {
-                this.#stateSetter(PageState.Troll)
-            } else {
-                console.log(err.code);
-                console.log(err);
-                this.#stateSetter(PageState.Canceled);
-            }
-        });
+        };
+        sendTransaction(this.#signer!, tx, successHandler, this.#trollHandler);
     }
 
     #fundGoal(goal: Goal) {
@@ -141,16 +165,26 @@ class Renderer {
             to: goal.address,
             value: goal.value,
         };
-
-        this.#signer!.sendTransaction(tx).then((res)=>{
+        const successHandler = (res: TransactionResponse)=>{
             res.wait().then((receipt)=>{
                 if (receipt == null) { this.#stateSetter(PageState.Error); }
                 else if (receipt.blockNumber == null) { this.#stateSetter(PageState.NotMined); }
                 else { this.#stateSetter(PageState.Funded); }
             });
             this.#stateSetter(PageState.Pending);
-        }).catch(()=>this.#stateSetter(PageState.Canceled));
+        };
+        const errorHandler = ()=>this.#stateSetter(PageState.Canceled);
+        sendTransaction(this.#signer!, tx, successHandler, errorHandler);
     }
+}
+
+function sendTransaction(
+    signer: JsonRpcSigner, 
+    tx: TransactionRequest, 
+    successHandler: (res: TransactionResponse)=>void, 
+    errorHandler: (err: any)=>void
+) {
+    signer.sendTransaction(tx).then(successHandler).catch(errorHandler);
 }
 
 export function initRenderer(stateSetter: Setter<PageState>, data: Readonly<Goal[]>) {

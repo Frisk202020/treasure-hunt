@@ -9,5 +9,6 @@ export enum PageState {
     Canceled,
     Troll,
     Pending,
-    InvalidAddressFormat
+    InvalidForm,
+    Authorized
 }
