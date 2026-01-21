@@ -9,8 +9,7 @@ export enum PageState {
     DuplicateClaim,
     NotMined,
     ParseLogFailed,
-    TryAgainPending,
-    TryAgain,
     Fatal,
-    UnsufficientFunds
+    UnsufficientFunds,
+    InternalError
 } 

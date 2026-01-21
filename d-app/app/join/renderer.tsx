@@ -1,8 +1,6 @@
-import { JsonRpcSigner, BrowserProvider, Interface } from "ethers";
+import { JsonRpcSigner, BrowserProvider, Interface, TransactionRequest, TransactionResponse } from "ethers";
 import { PageState } from "./util";
-import { TransactionRequest } from "ethers";
-import { BANK_ADDRESS, CHAIN_ID, MutateResult, Setter } from "../util-public";
-import { tryAddTicket } from "../actions";
+import { BANK_ADDRESS, CHAIN_ID, sendTransaction, Setter, SHARED_STATES } from "../util-public";
 import { JSX } from "react";
 import "../globals.css";
 
@@ -10,39 +8,54 @@ import "../globals.css";
 
 const TICKET_CLAIM = new Interface(["event TicketCreated(address user)"]);
 const UNSUFFICIENT_FUNDS = new Interface(["event UnsufficientFunds(address user, uint value)"]);
+const DUPLICATE = new Interface(["event AlreadyClaimed(address user, uint level)"]);
 
-interface Constructor {
-    provider?: BrowserProvider,
-    signer?: JsonRpcSigner,
-    stateSetter: Setter<PageState>,
-    setter?: Setter<Renderer>,
-    registeredAddresses: Set<string>,
-    fatalErrorBlockId?: number | null;
-}
 class Renderer {
-    #provider?: BrowserProvider;
-    #signer?: JsonRpcSigner;
-    #setter?: Setter<Renderer>;
     #stateSetter: Setter<PageState>;
-    #registeredAddresses: Set<string>;
+    #provider: BrowserProvider | null;
+    #signer: JsonRpcSigner | null;
+    #setter: Setter<Renderer> | null;
     #fatalErrorBlockId: number | null;
 
-    constructor(args: Constructor) {
-        this.#provider = args.provider; this.#signer = args.signer; this.#setter = args.setter;
-        this.#stateSetter = args.stateSetter; this.#registeredAddresses = args.registeredAddresses; 
-        this.#fatalErrorBlockId = args.fatalErrorBlockId ===  undefined ? null : args.fatalErrorBlockId;
+    constructor(stateSetter: Setter<PageState>) {
+        this.#stateSetter = stateSetter; this.#provider = null;
+        this.#signer = null; this.#setter = null; 
+        this.#fatalErrorBlockId = null;
     }
-
     withProvider(provider: BrowserProvider, setter: Setter<Renderer>) {
-        return new Renderer({provider, setter, stateSetter: this.#stateSetter, registeredAddresses: this.#registeredAddresses});
+        const r = new Renderer(this.#stateSetter);
+        r.#provider = provider; r.#setter = setter;
+        return r;
+    }
+    #withSigner(provider: BrowserProvider, setter: Setter<Renderer>, signer: JsonRpcSigner) {
+        const r = this.withProvider(provider, setter);
+        r.#signer = signer;
+        return r;
+    }
+    #connectMetamask() {
+        if (!this.#provider || !this.#setter) {
+            this.#stateSetter(PageState.InternalError);
+            return;
+        }
+
+        this.#provider!.getSigner().then((x)=>{
+            const r = this.#withSigner(this.#provider!, this.#setter!, x);
+            this.#setter!(r);
+            this.#stateSetter(PageState.MetaMaskConnected);
+        });
     }
     #setFatalError(block: number | null) {
-        this.#setter!(new Renderer({
-            provider: this.#provider, setter: this.#setter, stateSetter: this.#stateSetter,
-            registeredAddresses: this.#registeredAddresses, signer: this.#signer, fatalErrorBlockId: block
-        }));
+        if (!this.#provider || !this.#setter || !this.#signer){
+            this.#stateSetter(PageState.InternalError);
+            return;
+        }
+        const r = this.#withSigner(this.#provider, this.#setter, this.#signer);
+        r.#fatalErrorBlockId = block;
+
+        this.#setter(r);
         this.#stateSetter(PageState.Fatal);
     }
+
     render(state: PageState): JSX.Element {
         switch (state) {
             case PageState.Default:
@@ -54,7 +67,7 @@ class Renderer {
                 return <>
                     <p>To join the hunt, you'll need a <span className="rainbow">Hunt ticket</span>.</p>
                     <p>The hunt has an entry fee of <span className="gold">10</span>  Wei.</p>
-                    <p className="error">Please add Metamask extension to your browser to proceed</p>
+                    {SHARED_STATES.noMetaMask}
                 </>;
             case PageState.MetaMaskPending:
                 return <>
@@ -71,7 +84,7 @@ class Renderer {
                 </>;
             case PageState.Canceled:
                 return <>
-                    <p className="error">Transaction canceled, please try again.</p>
+                    {SHARED_STATES.cancelled}
                     <button onClick={()=>this.#claimTicket()}>Claim a ticket</button>
                 </>
             case PageState.TicketClaimPending:
@@ -87,21 +100,13 @@ class Renderer {
             case PageState.TicketClaimed:
                 return <p>Ticket claimed successfully ! Good luck !</p>;
             case PageState.DuplicateClaim:
-                return <p>You already claimed a ticket ! You can now begin the hunt.</p>;
-            case PageState.TryAgainPending:
-                new Promise((r)=>setTimeout(r, 1000)).then(()=>this.#stateSetter(PageState.TryAgain));
+                console.log("hello??????");
                 return <>
-                    <p className="error">Failed to update the database. Please wait a few seconds and try again.</p>
-                    <p>If it persists, please contact the administrator</p>
-                </>;
-            case PageState.TryAgain:
-                return <>
-                    <p className="error">Failed to update the database. Please wait a few seconds and try again.</p>
-                    <p>If it persists, please contact the administrator</p>
-                    <button onClick={()=>this.#tryAddTicket(this.#fatalErrorBlockId)}>Add your ticket to the database</button>
-                </>;
+                    <p>You already claimed a ticket ! We refunded you successfully.</p>
+                    <p>You can proceed to the hunt !</p>
+                </>; 
             case PageState.NotMined:
-                return <p className="error">Transaction wasn't added to the blockchain. Please contact the administrator.</p>;
+                return SHARED_STATES.notMined;
             case PageState.ParseLogFailed:
                 return <p className="error">Failed to find the transaction on the blockchain. Please contact the administrator</p>;
             case PageState.UnsufficientFunds:
@@ -116,26 +121,15 @@ class Renderer {
                 return <>
                     {error}
                     <p>Please save this info and contact the administrator.</p>
-                </>
+                </>;
+            case PageState.InternalError:
+                return SHARED_STATES.internal;
         };
     } 
 
-    #connectMetamask() {
-        this.#provider?.getSigner().then((x)=>{
-            this.#setter!(new Renderer({
-                provider: this.#provider, 
-                signer: x, 
-                stateSetter: this.#stateSetter, 
-                setter: this.#setter, 
-                registeredAddresses: this.#registeredAddresses
-            }));
-            this.#stateSetter(PageState.MetaMaskConnected);
-        });
-    }
     #claimTicket() {
-        if (this.#registeredAddresses.has(this.#signer!.address)) {
-            this.#stateSetter(PageState.DuplicateClaim);
-            return;
+        if (!this.#signer) {
+            this.#stateSetter(PageState.InternalError); return;
         }
 
         const tx: TransactionRequest = {
@@ -144,8 +138,7 @@ class Renderer {
             to: BANK_ADDRESS,
             value: 10
         };
-
-        this.#signer!.sendTransaction(tx).then((res)=>{
+        const successHandler = (res: TransactionResponse)=>{
             this.#stateSetter(PageState.TicketClaimPending);
             res.wait().then((receipt)=>{
                 if (receipt == null) {
@@ -160,7 +153,17 @@ class Renderer {
 
                 const ticketClaim = TICKET_CLAIM.parseLog(receipt.logs[0]);
                 if (ticketClaim != null) {
-                    this.#tryAddTicket(receipt.blockNumber);
+                    this.#stateSetter(PageState.TicketClaimed);
+                    return;
+                }
+
+                const dup = DUPLICATE.parseLog(receipt.logs[0]);
+                if (dup != null) {
+                    if (receipt.logs.length < 2) {
+                        this.#stateSetter(PageState.DuplicateClaim);
+                    }
+
+                    this.#setFatalError(receipt.blockNumber);
                     return;
                 }
 
@@ -176,28 +179,12 @@ class Renderer {
 
                 this.#stateSetter(PageState.ParseLogFailed);
             });
-        }).catch(()=>this.#stateSetter(PageState.Canceled));
-    }
-    #tryAddTicket(blockNumber: number | null) {
-        tryAddTicket(this.#signer!.address).then((x)=>{
-            switch (x) {
-                case MutateResult.Ok: this.#stateSetter(PageState.TicketClaimed); return;
-                case MutateResult.Busy: 
-                    this.#setter!(new Renderer({
-                        provider: this.#provider,
-                        signer: this.#signer,
-                        registeredAddresses: this.#registeredAddresses,
-                        setter: this.#setter,
-                        stateSetter: this.#stateSetter,
-                        fatalErrorBlockId: blockNumber
-                    })); 
-                    this.#stateSetter(PageState.TryAgainPending); return;
-                case MutateResult.Unknown: this.#setFatalError(blockNumber); return;
-            }
-        });
+        };
+        const errorHandler = ()=>this.#stateSetter(PageState.Canceled)
+        sendTransaction(this.#signer, tx, successHandler, errorHandler);
     }
 }
 
-export default function initRenderer(stateSetter: Setter<PageState>, registeredAddresses: Set<string>) {
-    return new Renderer({stateSetter, registeredAddresses});
+export default function initRenderer(stateSetter: Setter<PageState>) {
+    return new Renderer(stateSetter);
 }

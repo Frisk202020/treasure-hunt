@@ -4,12 +4,9 @@ import { PageState } from "./util";
 import { askMetamask } from "../util-public";
 import initRenderer from "./renderer";
 
-interface Args {
-    registeredAddresses: Set<string>;
-}
-export default function Client(args: Args) {
+export default function Client() {
     const [state, setState] = useState(PageState.Default);
-    const [renderer, setRenderer] = useState(initRenderer(setState, args.registeredAddresses));
+    const [renderer, setRenderer] = useState(initRenderer(setState));
 
     const page = renderer.render(state);
 

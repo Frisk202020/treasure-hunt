@@ -1,36 +1,43 @@
-import { JsonRpcSigner } from "ethers";
-import { BrowserProvider } from "ethers";
-import { BANK_ADDRESS, CHAIN_ID, Goal, Setter } from "../util-public";
+import { JsonRpcSigner, BrowserProvider, TransactionRequest, TransactionResponse, Interface } from "ethers";
+import { BANK_ADDRESS, CHAIN_ID, Goal, sendTransaction, Setter, SHARED_STATES } from "../util-public";
 import { JSX } from "react";
 import { PageState } from "./util";
-import { TransactionRequest } from "ethers";
-import { Interface } from "ethers";
 import "../globals.css";
-import { TransactionResponse } from "ethers";
 
 // TODO : may allow multi-goal authorization / funding for less tx fee
 
 const WITHDRAW = new Interface(["function withdraw()"]).encodeFunctionData("withdraw");
 const AUTHORIZE_INTERFACE = new Interface(["function authorize_goal(address)"]);
 
-interface Constructor {
-    provider?: BrowserProvider,
-    signer?: JsonRpcSigner,
-    stateSetter: Setter<PageState>,
-    setter?: Setter<Renderer>,
-    data: Readonly<Goal[]>;
-}
-
 class Renderer {
-    #provider?: BrowserProvider;
-    #signer?: JsonRpcSigner;
     #stateSetter: Setter<PageState>;
-    #setter?: Setter<Renderer>;
     #data: Readonly<Goal[]>;
+    #provider: BrowserProvider| null;
+    #signer: JsonRpcSigner | null;
+    #setter: Setter<Renderer> | null;
 
-    constructor(args: Constructor) {
-        this.#provider = args.provider; this.#signer = args.signer; this.#stateSetter = args.stateSetter; 
-        this.#setter = args.setter; this.#data = args.data;
+    constructor(stateSetter: Setter<PageState>, data: Readonly<Goal[]>) {
+        this.#stateSetter = stateSetter;  this.#data = data;  this.#provider = null;
+        this.#signer = null; this.#setter = null; 
+    }
+    withProvider(provider: BrowserProvider, setter: Setter<Renderer>) {
+        const r = new Renderer(this.#stateSetter, this.#data);
+        r.#provider = provider; r.#setter = setter;
+        console.log("hi");
+        return r;
+    }
+    #connectMetamask() {
+        if (!this.#provider || !this.#setter) {
+            this.#stateSetter(PageState.InternalError);
+            return;
+        }
+
+        this.#provider!.getSigner().then((x)=>{
+            const r = this.withProvider(this.#provider!, this.#setter!);
+            r.#signer = x;
+            this.#setter!(r);
+            this.#stateSetter(PageState.Connected);
+        });
     }
     get #trollHandler() {
         return (err: any)=>{
@@ -40,10 +47,6 @@ class Renderer {
                 this.#stateSetter(PageState.Canceled);
             }
         };
-    }
-
-    withProvider(provider: BrowserProvider, setter: Setter<Renderer>) {
-        return new Renderer({provider, stateSetter: this.#stateSetter, setter, data: this.#data});
     }
 
     render(state: PageState): JSX.Element {
@@ -83,7 +86,7 @@ class Renderer {
 
         switch (state) {
             case PageState.NoMetamask:
-                return <p className="error">Please add Metamask extension to your browser to proceed</p>;
+                return SHARED_STATES.noMetaMask;
             case PageState.MetaMaskDetected:
                 return <button className="more-margin" onClick={()=>this.#connectMetamask()}>Connect Metamask</button>;
             case PageState.Connected:
@@ -91,12 +94,12 @@ class Renderer {
             case PageState.Claimed:
                 return <p className="gold">Bounty claimed !</p>;
             case PageState.NotMined:
-                return <p className="error">ERROR: Transaction was not added to the blockchain.</p>;
+                return SHARED_STATES.notMined;
             case PageState.Error:
-                return <p className="error">ERROR: Failed to receive transaction response.</p>;
+                return SHARED_STATES.noResponse;
             case PageState.Canceled:
                 return <>
-                    <p className="error">ERROR: Transaction canceled</p>
+                    {SHARED_STATES.cancelled}
                     {elements}
                 </>;
             case PageState.Troll:
@@ -107,7 +110,7 @@ class Renderer {
             case PageState.Funded:
                 return <p className="gold">Goal funded !</p>
             case PageState.Pending:
-                return <p>Sending transaction, please wait...</p>
+                return SHARED_STATES.pending;
             case PageState.InvalidForm:
                 return <>
                     <p className="error">ERROR: Invalid goal information</p>
@@ -117,6 +120,8 @@ class Renderer {
                 return <>
                     <p className="gold">Goal authorized successfully !</p>
                 </>;
+            case PageState.InternalError:
+                return SHARED_STATES.internal;
         }
     }
 
@@ -124,19 +129,6 @@ class Renderer {
         return this.#data.map((x, i)=>
             <button key={`goal:${i}`} onClick={()=>this.#fundGoal(x)}>Fund goal {i+1}</button>
         );
-    }
-
-    #connectMetamask() {
-        this.#provider!.getSigner().then((x)=>{
-            this.#setter!(new Renderer({
-                provider: this.#provider, 
-                signer: x, 
-                stateSetter: this.#stateSetter, 
-                setter: this.#setter, 
-                data: this.#data
-            }));
-            this.#stateSetter(PageState.Connected);
-        });
     }
 
     #claim() {
@@ -178,15 +170,6 @@ class Renderer {
     }
 }
 
-function sendTransaction(
-    signer: JsonRpcSigner, 
-    tx: TransactionRequest, 
-    successHandler: (res: TransactionResponse)=>void, 
-    errorHandler: (err: any)=>void
-) {
-    signer.sendTransaction(tx).then(successHandler).catch(errorHandler);
-}
-
 export function initRenderer(stateSetter: Setter<PageState>, data: Readonly<Goal[]>) {
-    return new Renderer({stateSetter, data});
+    return new Renderer(stateSetter, data);
 } 

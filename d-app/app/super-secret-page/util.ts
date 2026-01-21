@@ -10,5 +10,6 @@ export enum PageState {
     Troll,
     Pending,
     InvalidForm,
-    Authorized
+    Authorized,
+    InternalError
 }
