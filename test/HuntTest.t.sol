@@ -42,29 +42,44 @@ contract HuntTest is Test {
     function test_send_less_than_fee() public {
         address payable user = createUser();
         vm.prank(user);
- 
+
+        // Ensure ticket claim is refused
         vm.expectEmit(true, true, true, true);
         emit TicketBank.UnsufficientFunds(user, 8);
         (bool success,) = ticketBank.call{value: 8}("");
         assert(success);
 
+        // Ensure user gets refunded
         assertEq(user.balance, FEE);
         assertEq(ticketBank.balance, 0);
     }
 
     function test_claim_ticket() public {
         address payable user = createUser();
-        vm.prank(user);
+        vm.startPrank(user);
 
+        // Ensure correct claim
         vm.expectEmit(true, true, true, true);
         emit TicketBank.TicketCreated(user);
         (bool success,) = ticketBank.call{value: FEE}("");
         assert(success);
-
+        
+        // Ensure user paid
         assertEq(user.balance, 0);
         assertEq(ticketBank.balance, FEE);
 
-        vm.prank(gameMaster);
+        // Ensure user can't claim twice
+        vm.deal(user, FEE);
+        vm.expectEmit(true,true,true,true);
+        emit TicketBank.AlreadyClaimed(user, 1);
+        (success,) = ticketBank.call{value: FEE}("");
+        assert(success);
+
+        // Ensure user gets refunded
+        assertEq(user.balance, FEE);
+        assertEq(ticketBank.balance, FEE);
+
+        vm.startPrank(gameMaster);
         (bool withdraw_success,) = ticketBank.call{value: 0}(abi.encodeWithSignature("withdraw()"));
         assert(withdraw_success);
         assertEq(ticketBank.balance, 0);
