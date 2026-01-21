@@ -2,14 +2,8 @@
 pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
-import {console} from "forge-std/console.sol";
 import {HuntGoal} from "../src/HuntGoal.sol";
 import {TicketBank} from "../src/TicketBank.sol";
-
-/* 
-TODO
-    - Implement the commit security on goals (hash of nonce) 
-*/
 
 contract HuntTest is Test {
     address payable gameMaster;

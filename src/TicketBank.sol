@@ -38,21 +38,34 @@ contract TicketBank {
 
     // captured by API
     event TicketCreated(address user);
+    event AlreadyClaimed(address user, uint level);
     event UnsufficientFunds(address user, uint value);
 
     // for users to prove an error occured
-    event RefundFailed(address user, uint sentAmmount);
     function deposit() internal {
+        uint lvl = granted[msg.sender];
+        if (lvl > 0) {
+            emit AlreadyClaimed(msg.sender, lvl);
+            refund();
+            return;
+        }
         if (msg.value < entryFee) {
             emit UnsufficientFunds(msg.sender, msg.value);
-            (bool refund_success,) = msg.sender.call{value: msg.value}("");
-            if (!refund_success) {
-                emit RefundFailed(msg.sender, msg.value);
-            }
+            refund();
+            return;
         }
 
         granted[msg.sender] = 1;
         emit TicketCreated(msg.sender);
+    }
+
+    event RefundFailed(address user, uint sentAmmount);
+    function refund() internal {
+        (bool success,) = msg.sender.call{value: msg.value}("");
+        if (!success) {
+            emit RefundFailed(msg.sender, msg.value);
+        }
+        return;
     }
     receive() payable external { deposit(); }
     fallback() payable external { deposit(); }
