@@ -66,4 +66,10 @@ contract HuntGoal {
         }
         return false;
     }
+
+    // TODO: REMOVE FROM DEPLOYMENT !! Will use developpement
+    function set_bank_address(address a) external {
+        require(msg.sender == gameMaster);
+        bank = Bank(a);
+    }
 }
