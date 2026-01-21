@@ -34,13 +34,23 @@ class Renderer {
     }
 
     render(state: PageState): JSX.Element {
-        const buttons = <>
+        const elements = <>
             <button className="more-margin" onClick={()=>this.#claim()}>Claim funds</button>
 
             <p className="more-margin">Additionally you can fund goals here, if you didn't already.</p>
             <div className="goals" style={{display: "flex", justifyContent: "space-evenly"}}>
                 {this.#getGoalButtons()}
             </div>
+            <p className="more-margin">Oh, and you can also authorize a new <span className="rainbow">Hunt Goal</span>.</p>
+            <form>
+                <input placeholder="Goal address (0x...)" type="text" name="address"></input>
+                <input type="submit" formAction={(formData)=>{
+                    const address = formData.get("address");
+                    if (!address) { this.#stateSetter(PageState.InvalidAddressFormat); }
+
+                    // TODO
+                }}></input>
+            </form>
         </>;
 
         switch (state) {
@@ -49,7 +59,7 @@ class Renderer {
             case PageState.MetaMaskDetected:
                 return <button className="more-margin" onClick={()=>this.#connectMetamask()}>Connect Metamask</button>;
             case PageState.Connected:
-                return buttons;
+                return elements;
             case PageState.Claimed:
                 return <p className="gold">Bounty claimed !</p>;
             case PageState.NotMined:
@@ -59,7 +69,7 @@ class Renderer {
             case PageState.Canceled:
                 return <>
                     <p className="error">ERROR: Transaction canceled</p>
-                    {buttons}
+                    {elements}
                 </>;
             case PageState.Troll:
                 return <>
@@ -70,12 +80,17 @@ class Renderer {
                 return <p className="gold">Goal funded !</p>
             case PageState.Pending:
                 return <p>Sending transaction, please wait...</p>
+            case PageState.InvalidAddressFormat:
+                return <>
+                    <p className="error">ERROR: Empty address</p>
+                    <button onClick={()=>this.#stateSetter(PageState.Connected)}>Retry</button>
+                </>;
         }
     }
 
     #getGoalButtons() {
         return this.#data.map((x, i)=>
-            <button key={`goal:${i}`} onClick={()=>this.#fundGoal(x)}>Fund goal {i}</button>
+            <button key={`goal:${i}`} onClick={()=>this.#fundGoal(x)}>Fund goal {i+1}</button>
         );
     }
 
