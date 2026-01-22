@@ -1,59 +1,38 @@
-import { JsonRpcSigner, BrowserProvider, Interface, TransactionRequest, TransactionResponse } from "ethers";
+import { Interface, TransactionRequest, TransactionResponse } from "ethers";
 import { PageState } from "./util";
-import { BANK_ADDRESS, CHAIN_ID, sendTransaction, Setter, SHARED_STATES } from "../util-public";
+import { BANK_ADDRESS, CHAIN_ID, send_transaction, Setter, SHARED_STATES } from "../util-public";
 import { JSX } from "react";
 import "../globals.css";
-
-// TODO : remove centralization of ticket db (blockchain handles)
+import Renderer from "../renderer";
 
 const TICKET_CLAIM = new Interface(["event TicketCreated(address user)"]);
 const UNSUFFICIENT_FUNDS = new Interface(["event UnsufficientFunds(address user, uint value)"]);
 const DUPLICATE = new Interface(["event AlreadyClaimed(address user, uint level)"]);
 
-class Renderer {
-    #stateSetter: Setter<PageState>;
-    #provider: BrowserProvider | null;
-    #signer: JsonRpcSigner | null;
-    #setter: Setter<Renderer> | null;
-    #fatalErrorBlockId: number | null;
+class JoinRenderer extends Renderer<PageState> {
+    #fatal_block_id: number | null;
 
-    constructor(stateSetter: Setter<PageState>) {
-        this.#stateSetter = stateSetter; this.#provider = null;
-        this.#signer = null; this.#setter = null; 
-        this.#fatalErrorBlockId = null;
+    constructor(state_setter: Setter<PageState>) {
+        super(state_setter);
+        this.#fatal_block_id = null;
     }
-    withProvider(provider: BrowserProvider, setter: Setter<Renderer>) {
-        const r = new Renderer(this.#stateSetter);
-        r.#provider = provider; r.#setter = setter;
-        return r;
+    protected get connected_state() {
+        return PageState.MetaMaskConnected;
+    } protected args() {
+        return this.state_setter;
+    } protected fallback(): void {
+        this.state_setter(PageState.InternalError);
     }
-    #withSigner(provider: BrowserProvider, setter: Setter<Renderer>, signer: JsonRpcSigner) {
-        const r = this.withProvider(provider, setter);
-        r.#signer = signer;
-        return r;
-    }
-    #connectMetamask() {
-        if (!this.#provider || !this.#setter) {
-            this.#stateSetter(PageState.InternalError);
+    #set_fatal_error(block: number | null) {
+        if (!this.provider || !this.self_setter || !this.signer){
+            this.state_setter(PageState.InternalError);
             return;
         }
+        const r = this.with_signer(this.signer);
+        r.#fatal_block_id = block;
 
-        this.#provider!.getSigner().then((x)=>{
-            const r = this.#withSigner(this.#provider!, this.#setter!, x);
-            this.#setter!(r);
-            this.#stateSetter(PageState.MetaMaskConnected);
-        });
-    }
-    #setFatalError(block: number | null) {
-        if (!this.#provider || !this.#setter || !this.#signer){
-            this.#stateSetter(PageState.InternalError);
-            return;
-        }
-        const r = this.#withSigner(this.#provider, this.#setter, this.#signer);
-        r.#fatalErrorBlockId = block;
-
-        this.#setter(r);
-        this.#stateSetter(PageState.Fatal);
+        this.self_setter(r);
+        this.state_setter(PageState.Fatal);
     }
 
     render(state: PageState): JSX.Element {
@@ -74,25 +53,25 @@ class Renderer {
                     <p>To join the hunt, you'll need a <span className="rainbow">Hunt ticket</span>.</p>
                     <p>The hunt has an entry fee of <span className="gold">10</span>  Wei.</p>
                     <p className="more-margin">Firstly, please connect your MetaMask wallet. Then you'll be able to claim a ticket.</p>
-                    <button onClick={()=>this.#connectMetamask()}> Connect to Metamask</button>
+                    <button onClick={()=>this.connect_metamask()}> Connect to Metamask</button>
                 </>;
             case PageState.MetaMaskConnected:
                 return <>
                     <p style={{textAlign: "center"}}>Great, MetaMask is connected !</p>
                     <p>Now you can claim a ticket, the following action will launch a transaction of <span>10</span> Wei to the organizer.</p>
-                    <button onClick={()=>this.#claimTicket()}>Claim a ticket</button>
+                    <button onClick={()=>this.#claim_ticket()}>Claim a ticket</button>
                 </>;
             case PageState.Canceled:
                 return <>
                     {SHARED_STATES.cancelled}
-                    <button onClick={()=>this.#claimTicket()}>Claim a ticket</button>
+                    <button onClick={()=>this.#claim_ticket()}>Claim a ticket</button>
                 </>
             case PageState.TicketClaimPending:
                 return <>
-                    <p>Claiming ticket for address <span className="gold">{this.#signer!.address}</span>...</p>
+                    <p>Claiming ticket for address <span className="gold">{this.signer!.address}</span>...</p>
                     <div className="box">
                         <p style={{textAlign: "center"}}>Transaction details</p>
-                        <p>Sender: {this.#signer!.address}</p>
+                        <p>Sender: {this.signer!.address}</p>
                         <p>Target: {BANK_ADDRESS}</p>
                         <p>Value: 10 wei</p>
                     </div>
@@ -100,7 +79,6 @@ class Renderer {
             case PageState.TicketClaimed:
                 return <p>Ticket claimed successfully ! Good luck !</p>;
             case PageState.DuplicateClaim:
-                console.log("hello??????");
                 return <>
                     <p>You already claimed a ticket ! We refunded you successfully.</p>
                     <p>You can proceed to the hunt !</p>
@@ -115,9 +93,9 @@ class Renderer {
                     <p>These were refunded to your account, but please contact the administrator.</p>
                 </>;
             case PageState.Fatal:
-                const error = this.#fatalErrorBlockId == null 
+                const error = this.#fatal_block_id == null 
                         ? <p className="error">An unexpected error occured, and transaction wasn't on the blockchain.</p>
-                        : <p className="error">An unexpected error occured. Transaction was recorded on the blockchain at block {this.#fatalErrorBlockId}</p>;
+                        : <p className="error">An unexpected error occured. Transaction was recorded on the blockchain at block {this.#fatal_block_id}</p>;
                 return <>
                     {error}
                     <p>Please save this info and contact the administrator.</p>
@@ -125,45 +103,45 @@ class Renderer {
             case PageState.InternalError:
                 return SHARED_STATES.internal;
         };
-    } 
+    }
 
-    #claimTicket() {
-        if (!this.#signer) {
-            this.#stateSetter(PageState.InternalError); return;
+    #claim_ticket() {
+        if (!this.signer) {
+            this.state_setter(PageState.InternalError); return;
         }
 
         const tx: TransactionRequest = {
             chainId: CHAIN_ID,
-            from: this.#signer!.address,
+            from: this.signer!.address,
             to: BANK_ADDRESS,
             value: 10
         };
         const successHandler = (res: TransactionResponse)=>{
-            this.#stateSetter(PageState.TicketClaimPending);
+            this.state_setter(PageState.TicketClaimPending);
             res.wait().then((receipt)=>{
                 if (receipt == null) {
-                    this.#stateSetter(PageState.NotMined);
+                    this.state_setter(PageState.NotMined);
                     return;
                 }
 
                 if (receipt.logs.length === 0) {
-                    this.#setFatalError(receipt.blockNumber)
+                    this.#set_fatal_error(receipt.blockNumber)
                     return;
                 }
 
                 const ticketClaim = TICKET_CLAIM.parseLog(receipt.logs[0]);
                 if (ticketClaim != null) {
-                    this.#stateSetter(PageState.TicketClaimed);
+                    this.state_setter(PageState.TicketClaimed);
                     return;
                 }
 
                 const dup = DUPLICATE.parseLog(receipt.logs[0]);
                 if (dup != null) {
                     if (receipt.logs.length < 2) {
-                        this.#stateSetter(PageState.DuplicateClaim);
+                        this.state_setter(PageState.DuplicateClaim);
                     }
 
-                    this.#setFatalError(receipt.blockNumber);
+                    this.#set_fatal_error(receipt.blockNumber);
                     return;
                 }
 
@@ -173,18 +151,18 @@ class Renderer {
                         return PageState.UnsufficientFunds;
                     }
 
-                    this.#setFatalError(receipt.blockNumber);
+                    this.#set_fatal_error(receipt.blockNumber);
                     return;
                 }
 
-                this.#stateSetter(PageState.ParseLogFailed);
+                this.state_setter(PageState.ParseLogFailed);
             });
         };
-        const errorHandler = ()=>this.#stateSetter(PageState.Canceled)
-        sendTransaction(this.#signer, tx, successHandler, errorHandler);
+        const error_handler = ()=>this.state_setter(PageState.Canceled)
+        send_transaction(this.signer, tx, successHandler, error_handler);
     }
 }
 
 export default function initRenderer(stateSetter: Setter<PageState>) {
-    return new Renderer(stateSetter);
+    return new JoinRenderer(stateSetter);
 }

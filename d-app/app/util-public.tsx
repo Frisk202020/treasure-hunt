@@ -50,7 +50,7 @@ export interface Goal {
 
 export type Setter<T> = Dispatch<SetStateAction<T>>;
 
-export function askMetamask(): BrowserProvider | null {
+export function ask_metamask(): BrowserProvider | null {
     const eth = (window as any).ethereum;
     if (eth != null) {
         eth.request({
@@ -63,7 +63,7 @@ export function askMetamask(): BrowserProvider | null {
     return null;
 }
 
-export function sendTransaction(
+export function send_transaction(
     signer: JsonRpcSigner, 
     tx: TransactionRequest, 
     successHandler: (res: TransactionResponse)=>void, 

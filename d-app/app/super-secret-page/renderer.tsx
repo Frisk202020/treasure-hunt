@@ -1,52 +1,41 @@
-import { JsonRpcSigner, BrowserProvider, TransactionRequest, TransactionResponse, Interface } from "ethers";
-import { BANK_ADDRESS, CHAIN_ID, Goal, sendTransaction, Setter, SHARED_STATES } from "../util-public";
+import { TransactionRequest, TransactionResponse, Interface } from "ethers";
+import { BANK_ADDRESS, CHAIN_ID, Goal, send_transaction, Setter, SHARED_STATES } from "../util-public";
 import { JSX } from "react";
 import { PageState } from "./util";
 import "../globals.css";
+import Renderer from "../renderer";
 
 // TODO : may allow multi-goal authorization / funding for less tx fee
 
 const WITHDRAW = new Interface(["function withdraw()"]).encodeFunctionData("withdraw");
 const AUTHORIZE_INTERFACE = new Interface(["function authorize_goal(address)"]);
-
-class Renderer {
-    #stateSetter: Setter<PageState>;
+interface Args {
+    state_setter: Setter<PageState>,
+    data: Readonly<Goal[]>;
+}
+class SecretRenderer extends Renderer<PageState, Args> {
     #data: Readonly<Goal[]>;
-    #provider: BrowserProvider| null;
-    #signer: JsonRpcSigner | null;
-    #setter: Setter<Renderer> | null;
 
-    constructor(stateSetter: Setter<PageState>, data: Readonly<Goal[]>) {
-        this.#stateSetter = stateSetter;  this.#data = data;  this.#provider = null;
-        this.#signer = null; this.#setter = null; 
-    }
-    withProvider(provider: BrowserProvider, setter: Setter<Renderer>) {
-        const r = new Renderer(this.#stateSetter, this.#data);
-        r.#provider = provider; r.#setter = setter;
-        console.log("hi");
-        return r;
-    }
-    #connectMetamask() {
-        if (!this.#provider || !this.#setter) {
-            this.#stateSetter(PageState.InternalError);
-            return;
-        }
-
-        this.#provider!.getSigner().then((x)=>{
-            const r = this.withProvider(this.#provider!, this.#setter!);
-            r.#signer = x;
-            this.#setter!(r);
-            this.#stateSetter(PageState.Connected);
-        });
-    }
-    get #trollHandler() {
+    constructor(args: Args) {
+        super(args.state_setter); this.#data = args.data;
+    } protected args() {
+        return {state_setter: this.state_setter, data: this.#data};
+    } protected get connected_state(): PageState {
+        return PageState.Connected;
+    } protected fallback(): void {
+        this.state_setter(PageState.InternalError);
+    } get #trollHandler() {
         return (err: any)=>{
             if (err.code !== undefined && err.code !== "ACTION_REJECTED") {
-                this.#stateSetter(PageState.Troll)
+                this.state_setter(PageState.Troll)
             } else {
-                this.#stateSetter(PageState.Canceled);
+                this.state_setter(PageState.Canceled);
             }
         };
+    } get #goal_buttons() {
+        return this.#data.map((x, i)=>
+            <button key={`goal:${i}`} onClick={()=>this.#fund_goal(x)}>Fund goal {i+1}</button>
+        );
     }
 
     render(state: PageState): JSX.Element {
@@ -55,31 +44,31 @@ class Renderer {
 
             <p className="more-margin">Additionally you can fund goals here, if you didn't already.</p>
             <div className="goals" style={{display: "flex", justifyContent: "space-evenly"}}>
-                {this.#getGoalButtons()}
+                {this.#goal_buttons}
             </div>
             <p className="more-margin">Oh, and you can also authorize a new <span className="rainbow">Hunt Goal</span>.</p>
             <form>
                 <input placeholder="Goal address (0x...)" type="text" name="address"></input>
                 <input type="submit" formAction={(formData)=>{
                     const address = formData.get("address");
-                    if (!address) { this.#stateSetter(PageState.InvalidForm); return; }
+                    if (!address) { this.state_setter(PageState.InvalidForm); return; }
                     
                     const tx: TransactionRequest = {
                         chainId: CHAIN_ID,
-                        from: this.#signer!.address,
+                        from: this.signer!.address,
                         to: BANK_ADDRESS,
                         value: 0,
                         data: AUTHORIZE_INTERFACE.encodeFunctionData("authorize_goal", [address])
                     };
                     const successHandler = (res: TransactionResponse)=>{
                         res.wait().then((receipt)=>{
-                            if (receipt == null) { this.#stateSetter(PageState.Error); }
-                            else if (receipt.blockNumber == null) { this.#stateSetter(PageState.NotMined); }
-                            else { this.#stateSetter(PageState.Authorized); }
+                            if (receipt == null) { this.state_setter(PageState.Error); }
+                            else if (receipt.blockNumber == null) { this.state_setter(PageState.NotMined); }
+                            else { this.state_setter(PageState.Authorized); }
                         });
-                        this.#stateSetter(PageState.Pending);
+                        this.state_setter(PageState.Pending);
                     };
-                    sendTransaction(this.#signer!, tx, successHandler, this.#trollHandler);
+                    send_transaction(this.signer!, tx, successHandler, this.#trollHandler);
                 }}></input>
             </form>
         </>;
@@ -88,7 +77,7 @@ class Renderer {
             case PageState.NoMetamask:
                 return SHARED_STATES.noMetaMask;
             case PageState.MetaMaskDetected:
-                return <button className="more-margin" onClick={()=>this.#connectMetamask()}>Connect Metamask</button>;
+                return <button className="more-margin" onClick={()=>this.connect_metamask()}>Connect Metamask</button>;
             case PageState.Connected:
                 return elements;
             case PageState.Claimed:
@@ -114,7 +103,7 @@ class Renderer {
             case PageState.InvalidForm:
                 return <>
                     <p className="error">ERROR: Invalid goal information</p>
-                    <button onClick={()=>this.#stateSetter(PageState.Connected)}>Retry</button>
+                    <button onClick={()=>this.state_setter(PageState.Connected)}>Retry</button>
                 </>;
             case PageState.Authorized:
                 return <>
@@ -125,51 +114,44 @@ class Renderer {
         }
     }
 
-    #getGoalButtons() {
-        return this.#data.map((x, i)=>
-            <button key={`goal:${i}`} onClick={()=>this.#fundGoal(x)}>Fund goal {i+1}</button>
-        );
-    }
-
     #claim() {
         const tx: TransactionRequest = {
             chainId: CHAIN_ID,
-            from: this.#signer!.address,
+            from: this.signer!.address,
             to: BANK_ADDRESS,
             value: 0,
             data: WITHDRAW
         };
         const successHandler = (res: TransactionResponse)=>{
             res.wait().then((receipt)=>{
-                if (receipt == null) { this.#stateSetter(PageState.Error); }
-                else if (receipt.blockNumber == null) { this.#stateSetter(PageState.NotMined); }
-                else { this.#stateSetter(PageState.Claimed); }
+                if (receipt == null) { this.state_setter(PageState.Error); }
+                else if (receipt.blockNumber == null) { this.state_setter(PageState.NotMined); }
+                else { this.state_setter(PageState.Claimed); }
             });
-            this.#stateSetter(PageState.Pending);
+            this.state_setter(PageState.Pending);
         };
-        sendTransaction(this.#signer!, tx, successHandler, this.#trollHandler);
+        send_transaction(this.signer!, tx, successHandler, this.#trollHandler);
     }
-
-    #fundGoal(goal: Goal) {
+    #fund_goal(goal: Goal) {
         const tx: TransactionRequest = {
             chainId: CHAIN_ID,
-            from: this.#signer!.address,
+            from: this.signer!.address,
             to: goal.address,
             value: goal.value,
         };
         const successHandler = (res: TransactionResponse)=>{
             res.wait().then((receipt)=>{
-                if (receipt == null) { this.#stateSetter(PageState.Error); }
-                else if (receipt.blockNumber == null) { this.#stateSetter(PageState.NotMined); }
-                else { this.#stateSetter(PageState.Funded); }
+                if (receipt == null) { this.state_setter(PageState.Error); }
+                else if (receipt.blockNumber == null) { this.state_setter(PageState.NotMined); }
+                else { this.state_setter(PageState.Funded); }
             });
-            this.#stateSetter(PageState.Pending);
+            this.state_setter(PageState.Pending);
         };
-        const errorHandler = ()=>this.#stateSetter(PageState.Canceled);
-        sendTransaction(this.#signer!, tx, successHandler, errorHandler);
+        const errorHandler = ()=>this.state_setter(PageState.Canceled);
+        send_transaction(this.signer!, tx, successHandler, errorHandler);
     }
 }
 
-export function initRenderer(stateSetter: Setter<PageState>, data: Readonly<Goal[]>) {
-    return new Renderer(stateSetter, data);
+export function initRenderer(state_setter: Setter<PageState>, data: Readonly<Goal[]>) {
+    return new SecretRenderer({state_setter, data});
 } 

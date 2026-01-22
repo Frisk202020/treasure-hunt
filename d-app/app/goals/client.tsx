@@ -1,5 +1,4 @@
-"use client"
-
+"use client";
 import { useEffect, useState } from "react";
 import { ask_metamask, Goal } from "../util-public";
 import { initRenderer } from "./renderer";
@@ -9,14 +8,14 @@ interface Args {
     goals: Readonly<Goal[]>
 }
 export default function Client(args: Args) {
-    const [state, setState] = useState(PageState.NoMetamask);
-    const [renderer, setRenderer] = useState(initRenderer(setState, args.goals));
+    const [state, state_setter] = useState(PageState.Default);
+    const [renderer, set_renderer] = useState(initRenderer(state_setter, args.goals));
 
     useEffect(()=>{
         const provider = ask_metamask();
         if (provider != null) {
-            setRenderer(renderer.with_provider(provider, setRenderer));
-            setState(PageState.MetaMaskDetected);
+            set_renderer(renderer.with_provider(provider, set_renderer));
+            state_setter(PageState.Connected);
         }
     }, []);
 
