@@ -1,0 +1,27 @@
+form {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+} .submit-enabled, .disabled {
+    background-color: gold; 
+    color: black; border: none;
+} .submit-enabled:hover, .disabled:hover {
+    background-color: #e9d35a;
+    color: #363535;
+    cursor: pointer;
+} input[type="number"] {
+    width: 80vw;
+    padding-left: 1vw; padding-right: 1vw;
+} input[type="radio"] { 
+    opacity: 0; position: absolute;
+    width: 0px; height: 0px;
+} label {
+    padding: 10px;
+    border-radius: 10px;
+} .enabled {
+    background-color: rgb(59, 213, 149);
+} .submit-disabled {
+    background-color: #363535;
+    cursor: not-allowed;
+}

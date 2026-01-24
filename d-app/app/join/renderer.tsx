@@ -139,6 +139,7 @@ class JoinRenderer extends Renderer<PageState> {
                 if (dup != null) {
                     if (receipt.logs.length < 2) {
                         this.state_setter(PageState.DuplicateClaim);
+                        return;
                     }
 
                     this.#set_fatal_error(receipt.blockNumber);

@@ -8,16 +8,14 @@ export default function Client() {
     const [state, setState] = useState(PageState.Default);
     const [renderer, setRenderer] = useState(initRenderer(setState));
 
-    const page = renderer.render(state);
-
     useEffect(()=>{
         const provider = ask_metamask();
         if (provider != null) {
             setRenderer(renderer.with_provider(provider, setRenderer));
-            setState(PageState.MetaMaskConnected);
+            setState(PageState.MetaMaskPending);
         }
     }, []);
 
 
-    return page;
+    return renderer.render(state);
 }
