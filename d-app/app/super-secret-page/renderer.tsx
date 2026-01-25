@@ -1,5 +1,5 @@
-import { TransactionRequest, TransactionResponse, Interface } from "ethers";
-import { BANK_ADDRESS, CHAIN_ID, Goal, send_transaction, Setter, SHARED_STATES } from "../util-public";
+import { TransactionResponse, Interface } from "ethers";
+import { BANK_ADDRESS, Goal, send_transaction, Setter, SHARED_STATES, TransactionParams } from "../util-public";
 import { JSX } from "react";
 import { PageState } from "./util";
 import "../globals.css";
@@ -53,11 +53,9 @@ class SecretRenderer extends Renderer<PageState, Args> {
                     const address = formData.get("address");
                     if (!address) { this.state_setter(PageState.InvalidForm); return; }
                     
-                    const tx: TransactionRequest = {
-                        chainId: CHAIN_ID,
-                        from: this.signer!.address,
+                    const tx: TransactionParams = {
+                        signer: this.signer!,
                         to: BANK_ADDRESS,
-                        value: 0,
                         data: AUTHORIZE_INTERFACE.encodeFunctionData("authorize_goal", [address])
                     };
                     const successHandler = (res: TransactionResponse)=>{
@@ -68,7 +66,7 @@ class SecretRenderer extends Renderer<PageState, Args> {
                         });
                         this.state_setter(PageState.Pending);
                     };
-                    send_transaction(this.signer!, tx, successHandler, this.#trollHandler);
+                    send_transaction(tx, successHandler, this.#trollHandler);
                 }}></input>
             </form>
         </>;
@@ -115,11 +113,9 @@ class SecretRenderer extends Renderer<PageState, Args> {
     }
 
     #claim() {
-        const tx: TransactionRequest = {
-            chainId: CHAIN_ID,
-            from: this.signer!.address,
+        const tx: TransactionParams = {
+            signer: this.signer!,
             to: BANK_ADDRESS,
-            value: 0,
             data: WITHDRAW
         };
         const successHandler = (res: TransactionResponse)=>{
@@ -130,12 +126,11 @@ class SecretRenderer extends Renderer<PageState, Args> {
             });
             this.state_setter(PageState.Pending);
         };
-        send_transaction(this.signer!, tx, successHandler, this.#trollHandler);
+        send_transaction(tx, successHandler, this.#trollHandler);
     }
     #fund_goal(goal: Goal) {
-        const tx: TransactionRequest = {
-            chainId: CHAIN_ID,
-            from: this.signer!.address,
+        const tx: TransactionParams = {
+            signer: this.signer!,
             to: goal.address,
             value: goal.value,
         };
@@ -148,7 +143,7 @@ class SecretRenderer extends Renderer<PageState, Args> {
             this.state_setter(PageState.Pending);
         };
         const errorHandler = ()=>this.state_setter(PageState.Canceled);
-        send_transaction(this.signer!, tx, successHandler, errorHandler);
+        send_transaction(tx, successHandler, errorHandler);
     }
 }
 

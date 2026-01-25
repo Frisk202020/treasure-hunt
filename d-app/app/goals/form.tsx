@@ -1,7 +1,8 @@
 import { useState } from "react";
 
 type ClassName = "disabled" | "enabled";
-export default function GoalForm(props: { len: number }) {
+type FormHandler = (data: FormData)=>void;
+export default function GoalForm(props: { len: number, handler: FormHandler }) {
     const [submitEnabled, setSubmit] = useState(false);
     const [classes, setClass] = useState(default_classes(props.len));
     const btns: React.JSX.Element[] = [];
@@ -18,7 +19,7 @@ export default function GoalForm(props: { len: number }) {
         const id = `g${i}`;
         btns.push(
             <div key={`d${i}`}>
-                <input type="radio" id={id} name="Goal" value={i} onClick={()=>handler(i)}></input>
+                <input type="radio" id={id} name="goal" value={i} onClick={()=>handler(i)}></input>
                 <Label class_name={classes[i]} id={id} display_index={i+1}></Label>
             </div>
         );
@@ -28,21 +29,16 @@ export default function GoalForm(props: { len: number }) {
         <input type="number" name="nonce" placeholder="Key value (20 digits)" key="nonce"></input>
         <p className="more-margin">Don't forget to specify which <span className="rainbow">Hunt Goal</span> you wish to claim !</p>
         {btns}
-        <Submit enabled={submitEnabled}></Submit>
+        <Submit enabled={submitEnabled} handler={props.handler}></Submit>
     </form>;
 }
 
 function Label(props: {class_name: ClassName, id: string, display_index: number}) {
     return <label className={props.class_name} htmlFor={props.id}>Goal {props.display_index}</label>
-} function Submit(props: {enabled: boolean}) {
+} function Submit(props: {enabled: boolean, handler: FormHandler}) {
     return props.enabled
-        ? <input type="submit" className="submit-enabled more-margin" formAction={form_action} value="Claim Goal !"></input>
+        ? <input type="submit" className="submit-enabled more-margin" formAction={props.handler} value="Claim Goal !"></input>
         : <input type="submit" className="submit-disabled more-margin" formAction={()=>{}} value="Claim Goal !"></input>;
-}
-
-function form_action(data: FormData) {
-    // TODO
-    console.log("todo");
 }
 
 function default_classes(len: number) {

@@ -1,6 +1,6 @@
-import { Interface, TransactionRequest, TransactionResponse } from "ethers";
+import { Interface, TransactionResponse } from "ethers";
 import { PageState } from "./util";
-import { BANK_ADDRESS, CHAIN_ID, send_transaction, Setter, SHARED_STATES } from "../util-public";
+import { BANK_ADDRESS, send_transaction, Setter, SHARED_STATES, TransactionParams } from "../util-public";
 import { JSX } from "react";
 import "../globals.css";
 import Renderer from "../renderer";
@@ -110,9 +110,8 @@ class JoinRenderer extends Renderer<PageState> {
             this.state_setter(PageState.InternalError); return;
         }
 
-        const tx: TransactionRequest = {
-            chainId: CHAIN_ID,
-            from: this.signer!.address,
+        const tx: TransactionParams = {
+            signer: this.signer!,
             to: BANK_ADDRESS,
             value: 10
         };
@@ -160,7 +159,7 @@ class JoinRenderer extends Renderer<PageState> {
             });
         };
         const error_handler = ()=>this.state_setter(PageState.Canceled)
-        send_transaction(this.signer, tx, successHandler, error_handler);
+        send_transaction(tx, successHandler, error_handler);
     }
 }
 
