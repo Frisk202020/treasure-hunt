@@ -11,5 +11,6 @@ export enum PageState {
     Pending,
     InvalidForm,
     Authorized,
-    InternalError
+    InternalError,
+    ErrorParseFailed
 }

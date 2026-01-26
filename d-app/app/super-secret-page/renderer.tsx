@@ -13,6 +13,11 @@ interface Args {
     state_setter: Setter<PageState>,
     data: Readonly<Goal[]>;
 }
+const txErrors = {
+    cancelled: "rejected",
+    forbidden: "Forbidden",
+}
+
 class SecretRenderer extends Renderer<PageState, Args> {
     #data: Readonly<Goal[]>;
 
@@ -58,15 +63,8 @@ class SecretRenderer extends Renderer<PageState, Args> {
                         to: BANK_ADDRESS,
                         data: AUTHORIZE_INTERFACE.encodeFunctionData("authorize_goal", [address])
                     };
-                    const successHandler = (res: TransactionResponse)=>{
-                        res.wait().then((receipt)=>{
-                            if (receipt == null) { this.state_setter(PageState.Error); }
-                            else if (receipt.blockNumber == null) { this.state_setter(PageState.NotMined); }
-                            else { this.state_setter(PageState.Authorized); }
-                        });
-                        this.state_setter(PageState.Pending);
-                    };
-                    send_transaction(tx, successHandler, this.#trollHandler);
+                    const success_handler = (res: TransactionResponse)=>this.#success_handler(res, PageState.Authorized);
+                    send_transaction(tx, success_handler, this.#trollHandler);
                 }}></input>
             </form>
         </>;
@@ -109,6 +107,8 @@ class SecretRenderer extends Renderer<PageState, Args> {
                 </>;
             case PageState.InternalError:
                 return SHARED_STATES.internal;
+            case PageState.ErrorParseFailed:
+               return <p className="error">Transaction failed, but failed to parse the error.</p>;
         }
     }
 
@@ -118,14 +118,7 @@ class SecretRenderer extends Renderer<PageState, Args> {
             to: BANK_ADDRESS,
             data: WITHDRAW
         };
-        const successHandler = (res: TransactionResponse)=>{
-            res.wait().then((receipt)=>{
-                if (receipt == null) { this.state_setter(PageState.Error); }
-                else if (receipt.blockNumber == null) { this.state_setter(PageState.NotMined); }
-                else { this.state_setter(PageState.Claimed); }
-            });
-            this.state_setter(PageState.Pending);
-        };
+        const successHandler = (res: TransactionResponse)=>this.#success_handler(res, PageState.Claimed);
         send_transaction(tx, successHandler, this.#trollHandler);
     }
     #fund_goal(goal: Goal) {
@@ -142,8 +135,29 @@ class SecretRenderer extends Renderer<PageState, Args> {
             });
             this.state_setter(PageState.Pending);
         };
-        const errorHandler = ()=>this.state_setter(PageState.Canceled);
-        send_transaction(tx, successHandler, errorHandler);
+        send_transaction(tx, successHandler, (err)=>this.#errorHandler(err));
+    }
+    #success_handler(res: TransactionResponse, success_state: PageState) {
+        res.wait().then((receipt)=>{
+            if (receipt == null) { this.state_setter(PageState.Error); }
+            else if (receipt.blockNumber == null) { this.state_setter(PageState.NotMined); }
+            else { this.state_setter(success_state); }
+        });
+        this.state_setter(PageState.Pending);
+    }
+    #errorHandler(err: any) {
+        if (err === undefined || !err || err.reason === undefined) {
+            return this.state_setter(PageState.Error);
+        }
+
+        switch(err.reason) {
+            case txErrors.cancelled:
+                return this.state_setter(PageState.Canceled);
+            case txErrors.forbidden:
+                return this.state_setter(PageState.Troll);
+            default:
+                return this.state_setter(PageState.ErrorParseFailed)
+        }
     }
 }
 

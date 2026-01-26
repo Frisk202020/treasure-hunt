@@ -1,13 +1,16 @@
 import { Interface, TransactionResponse } from "ethers";
 import { PageState } from "./util";
-import { BANK_ADDRESS, send_transaction, Setter, SHARED_STATES, TransactionParams } from "../util-public";
+import { BANK_ADDRESS, send_transaction, Setter, SHARED_STATES, TransactionParams, tx_box } from "../util-public";
 import { JSX } from "react";
 import "../globals.css";
 import Renderer from "../renderer";
 
 const TICKET_CLAIM = new Interface(["event TicketCreated(address user)"]);
-const UNSUFFICIENT_FUNDS = new Interface(["event UnsufficientFunds(address user, uint value)"]);
-const DUPLICATE = new Interface(["event AlreadyClaimed(address user, uint level)"]);
+const txErrors = {
+    cancelled: "rejected",
+    already_claimed: "Already claimed",
+    unsufficient: "Please send the exact entry fee"
+}; const FEE = 10;
 
 class JoinRenderer extends Renderer<PageState> {
     #fatal_block_id: number | null;
@@ -69,15 +72,10 @@ class JoinRenderer extends Renderer<PageState> {
             case PageState.TicketClaimPending:
                 return <>
                     <p>Claiming ticket for address <span className="gold">{this.signer!.address}</span>...</p>
-                    <div className="box">
-                        <p style={{textAlign: "center"}}>Transaction details</p>
-                        <p>Sender: {this.signer!.address}</p>
-                        <p>Target: {BANK_ADDRESS}</p>
-                        <p>Value: 10 wei</p>
-                    </div>
+                    {tx_box(this.signer!.address, BANK_ADDRESS, FEE)}
                 </>;
             case PageState.TicketClaimed:
-                return <p>Ticket claimed successfully ! Good luck !</p>;
+                return <p><span className="gold">Ticket claimed successfully !</span> Good luck !</p>;
             case PageState.DuplicateClaim:
                 return <>
                     <p>You already claimed a ticket ! We refunded you successfully.</p>
@@ -113,53 +111,48 @@ class JoinRenderer extends Renderer<PageState> {
         const tx: TransactionParams = {
             signer: this.signer!,
             to: BANK_ADDRESS,
-            value: 10
+            value: FEE
         };
-        const successHandler = (res: TransactionResponse)=>{
-            this.state_setter(PageState.TicketClaimPending);
-            res.wait().then((receipt)=>{
-                if (receipt == null) {
-                    this.state_setter(PageState.NotMined);
-                    return;
-                }
+        send_transaction(tx, (res: TransactionResponse)=>this.#success_handler(res), (err: any)=>this.#error_handler(err));
+    }
+    #success_handler(res: TransactionResponse) {
+        this.state_setter(PageState.TicketClaimPending);
+        res.wait().then((receipt)=>{
+            if (receipt == null) {
+                this.state_setter(PageState.NotMined);
+                return;
+            }
 
-                if (receipt.logs.length === 0) {
-                    this.#set_fatal_error(receipt.blockNumber)
-                    return;
-                }
+            if (receipt.logs.length === 0) {
+                this.#set_fatal_error(receipt.blockNumber)
+                return;
+            }
 
-                const ticketClaim = TICKET_CLAIM.parseLog(receipt.logs[0]);
-                if (ticketClaim != null) {
-                    this.state_setter(PageState.TicketClaimed);
-                    return;
-                }
+            const ticketClaim = TICKET_CLAIM.parseLog(receipt.logs[0]);
+            if (ticketClaim != null) {
+                this.state_setter(PageState.TicketClaimed);
+                return;
+            }
 
-                const dup = DUPLICATE.parseLog(receipt.logs[0]);
-                if (dup != null) {
-                    if (receipt.logs.length < 2) {
-                        this.state_setter(PageState.DuplicateClaim);
-                        return;
-                    }
+            this.state_setter(PageState.ParseLogFailed);
+        });
+    }
+    #error_handler(err: any){
+        if (err === undefined || !err || err.reason === undefined) {
+            return this.state_setter(PageState.ParseLogFailed);
+        }
+        console.log(err);
 
-                    this.#set_fatal_error(receipt.blockNumber);
-                    return;
-                }
-
-                const unsufficientFunds = UNSUFFICIENT_FUNDS.parseLog(receipt.logs[0]);
-                if (unsufficientFunds != null) {
-                    if (receipt.logs.length < 2) {
-                        return PageState.UnsufficientFunds;
-                    }
-
-                    this.#set_fatal_error(receipt.blockNumber);
-                    return;
-                }
-
-                this.state_setter(PageState.ParseLogFailed);
-            });
-        };
-        const error_handler = ()=>this.state_setter(PageState.Canceled)
-        send_transaction(tx, successHandler, error_handler);
+        switch(err.reason) {
+            case txErrors.cancelled:
+                return this.state_setter(PageState.Canceled);
+            case txErrors.already_claimed:
+                return this.state_setter(PageState.DuplicateClaim);
+            case txErrors.unsufficient:
+                return this.state_setter(PageState.UnsufficientFunds);
+            default:
+                return this.state_setter(PageState.ParseLogFailed);
+        }
     }
 }
 
