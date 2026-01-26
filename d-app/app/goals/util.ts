@@ -6,4 +6,14 @@ export enum PageState {
     InternalError,
     Retry,
     Wrong,
+    Sending,
+    Cancelled,
+    NotMined,
+    Ok,
+    Win,
+    ParseFailed,
+    ErrParseFailed,
+    InvalidLevel,
+    MissingFunds,
+    Unexpected
 }

@@ -29,14 +29,6 @@ class SecretRenderer extends Renderer<PageState, Args> {
         return PageState.Connected;
     } protected fallback(): void {
         this.state_setter(PageState.InternalError);
-    } get #trollHandler() {
-        return (err: any)=>{
-            if (err.code !== undefined && err.code !== "ACTION_REJECTED") {
-                this.state_setter(PageState.Troll)
-            } else {
-                this.state_setter(PageState.Canceled);
-            }
-        };
     } get #goal_buttons() {
         return this.#data.map((x, i)=>
             <button key={`goal:${i}`} onClick={()=>this.#fund_goal(x)}>Fund goal {i+1}</button>
@@ -63,8 +55,11 @@ class SecretRenderer extends Renderer<PageState, Args> {
                         to: BANK_ADDRESS,
                         data: AUTHORIZE_INTERFACE.encodeFunctionData("authorize_goal", [address])
                     };
-                    const success_handler = (res: TransactionResponse)=>this.#success_handler(res, PageState.Authorized);
-                    send_transaction(tx, success_handler, this.#trollHandler);
+                    send_transaction(
+                        tx, 
+                        (res: TransactionResponse)=>this.#success_handler(res, PageState.Authorized), 
+                        (err)=>this.#error_handler(err)
+                    );
                 }}></input>
             </form>
         </>;
@@ -118,8 +113,11 @@ class SecretRenderer extends Renderer<PageState, Args> {
             to: BANK_ADDRESS,
             data: WITHDRAW
         };
-        const successHandler = (res: TransactionResponse)=>this.#success_handler(res, PageState.Claimed);
-        send_transaction(tx, successHandler, this.#trollHandler);
+        send_transaction(
+            tx, 
+            (res: TransactionResponse)=>this.#success_handler(res, PageState.Claimed), 
+            (err)=>this.#error_handler(err)
+        );
     }
     #fund_goal(goal: Goal) {
         const tx: TransactionParams = {
@@ -127,15 +125,11 @@ class SecretRenderer extends Renderer<PageState, Args> {
             to: goal.address,
             value: goal.value,
         };
-        const successHandler = (res: TransactionResponse)=>{
-            res.wait().then((receipt)=>{
-                if (receipt == null) { this.state_setter(PageState.Error); }
-                else if (receipt.blockNumber == null) { this.state_setter(PageState.NotMined); }
-                else { this.state_setter(PageState.Funded); }
-            });
-            this.state_setter(PageState.Pending);
-        };
-        send_transaction(tx, successHandler, (err)=>this.#errorHandler(err));
+        send_transaction(
+            tx, 
+            (res: TransactionResponse)=>this.#success_handler(res, PageState.Funded), 
+            (err)=>this.#error_handler(err)
+        );
     }
     #success_handler(res: TransactionResponse, success_state: PageState) {
         res.wait().then((receipt)=>{
@@ -145,7 +139,7 @@ class SecretRenderer extends Renderer<PageState, Args> {
         });
         this.state_setter(PageState.Pending);
     }
-    #errorHandler(err: any) {
+    #error_handler(err: any) {
         if (err === undefined || !err || err.reason === undefined) {
             return this.state_setter(PageState.Error);
         }
@@ -156,7 +150,7 @@ class SecretRenderer extends Renderer<PageState, Args> {
             case txErrors.forbidden:
                 return this.state_setter(PageState.Troll);
             default:
-                return this.state_setter(PageState.ErrorParseFailed)
+                return this.state_setter(PageState.ErrorParseFailed);
         }
     }
 }

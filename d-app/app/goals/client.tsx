@@ -15,7 +15,7 @@ export default function Client(args: Args) {
         const provider = ask_metamask();
         if (provider != null) {
             set_renderer(renderer.with_provider(provider, set_renderer));
-            state_setter(PageState.Connected);
+            state_setter(PageState.Pending);
         }
     }, []);
 

@@ -113,7 +113,11 @@ class JoinRenderer extends Renderer<PageState> {
             to: BANK_ADDRESS,
             value: FEE
         };
-        send_transaction(tx, (res: TransactionResponse)=>this.#success_handler(res), (err: any)=>this.#error_handler(err));
+        send_transaction(
+            tx, 
+            (res: TransactionResponse)=>this.#success_handler(res), 
+            (err: any)=>this.#error_handler(err)
+        );
     }
     #success_handler(res: TransactionResponse) {
         this.state_setter(PageState.TicketClaimPending);

@@ -1,31 +1,71 @@
-import { Goal, send_transaction, Setter, SHARED_STATES, TransactionParams } from "../util-public";
+import { Goal, send_transaction, Setter, SHARED_STATES, TransactionParams, tx_box, unwrap_or } from "../util-public";
 import Renderer from "../renderer";
 import { PageState } from "./util";
-import "./style.css";
+import "./style.css"; import "../globals.css";
 import GoalForm from "./form";
 import { ErrorCodes, VrfyRequest } from "../api/public";
 import { Interface } from "ethers";
+import { TransactionResponse } from "ethers";
 
 interface Args {
     state_setter: Setter<PageState>,
-    data: Readonly<Goal[]>
+    data: Readonly<Goal[]>,
+    err_block_id: number | null,
+    goal_address: string | null,
 } 
-const CLAIM = new Interface(["function claim(uint nonce)"]);
+const CLAIM = new Interface(["function claim(uint256 nonce)"]);
+const WIN = new Interface(["event GoalClaimed(address goal, address winner)"]);
+const PROCEED = <p>You can now proceed to the next level !</p>;
+const CONTACT_ADMIN = <p>Please contact the administrator.</p>;
+
+const txErrors = {
+    cancelled: "rejected",
+    wrong: "Wrong",
+    invalid_level: "Invalid id",
+    unauthorized: "Unauthorized",
+    missing: "Missing funds"
+};
 
 class GoalRenderer extends Renderer<PageState, Args> {
     #data: Readonly<Goal[]>;
+    #err_block_id: number | null;
+    #goal_address: string | null;
 
     constructor(args: Args) {
-        super(args.state_setter); this.#data = args.data;
+        super(args.state_setter); this.#data = args.data; 
+        this.#err_block_id = args.err_block_id; this.#goal_address = args.goal_address;
     } protected args(): Args {
-        return {state_setter: this.state_setter, data: this.#data};
+        return {
+            state_setter: this.state_setter, data: this.#data, 
+            err_block_id: this.#err_block_id, goal_address: this.#goal_address
+        };
     } protected get connected_state(): PageState {
         return PageState.Connected;
     } protected fallback(): void {
         this.state_setter(PageState.InternalError);
-    } get claim_form() {
-        return <GoalForm len={this.#data.length} handler={(data: FormData)=>this.#form_handler(data)}></GoalForm>
+    } 
+    
+    #with_goal_address(addr: string) {
+        if (!this.provider || !this.self_setter || !this.signer) {
+            return this.state_setter(PageState.InternalError);
+        }
+
+        const r = this.with_signer(this.signer);
+        r.#goal_address = addr;
+        this.self_setter(r);
     }
+    #set_error(id: number | null) {
+        if (!this.provider || !this.self_setter || !this.signer) {
+            return this.state_setter(PageState.InternalError);
+        }
+
+        const r = this.with_signer(this.signer);
+        r.#err_block_id = id;
+        this.self_setter(r); this.state_setter(PageState.ParseFailed);
+    }
+    get claim_form() {
+        return <GoalForm len={this.#data.length} handler={(data: FormData)=>this.#form_handler(data)}></GoalForm>
+    } 
 
     render(state: PageState): React.JSX.Element {
         switch (state) {
@@ -34,7 +74,7 @@ class GoalRenderer extends Renderer<PageState, Args> {
             case PageState.Pending:
                 return <>
                     <p>To proceed, please connect to Metamask.</p>
-                    <button onClick={()=>this.connect_metamask()}></button>
+                    <button onClick={()=>this.connect_metamask()}>Connect Metamask</button>
                 </>;
             case PageState.Connected:
                 return this.claim_form;
@@ -52,6 +92,47 @@ class GoalRenderer extends Renderer<PageState, Args> {
                     <p>Your answer is wrong.</p>
                     <p>You might want to check your awswer or ensure it is for the correct goal.</p>
                     <p>Don't give up, We're sure you're very close !</p>
+                </>;
+            case PageState.Cancelled:
+                return SHARED_STATES.cancelled;
+            case PageState.NotMined:
+                return SHARED_STATES.notMined;
+            case PageState.ParseFailed:
+                return this.#err_block_id == null 
+                    ? <p className="error">Failed to find the transaction on the blockchain, please contact the administrator.</p>
+                    : <p className="error">Failed to parse logs of the transaction. It was recorded on block {this.#err_block_id}</p>;
+            case PageState.Sending:
+                return <>
+                    <p>Claiming <span className="rainbow">Hunt Goal</span>, please stand by.</p>
+                    {tx_box(
+                        this.signer!.address,
+                        unwrap_or("Internal error", this.#goal_address),
+                        0
+                    )}
+                </>;
+            case PageState.Ok:
+                return <>
+                    <p><span className="rainbow">Hunt Goal</span> claimed, but you didn't win the prize :(</p>
+                    {PROCEED}
+                </>;
+            case PageState.Win:
+                return <>
+                    <p className="gold">Congratulations, you won the prize !!</p>
+                    {PROCEED}
+                </>;
+            case PageState.InvalidLevel:
+                return <p className="error">You can't claim this goal now. Make sure you're claiming goals in order.</p>;
+            case PageState.ErrParseFailed:
+                return <p className="error">Can't send the transaction, but failed to parse the error.</p>;
+            case PageState.MissingFunds:
+                return <>
+                    <p className="error">You got the right answer but we failed to send you the funds.</p>
+                    {CONTACT_ADMIN}
+                </>;
+            case PageState.Unexpected:
+                return <>
+                    <p className="error">An unexpected error occured during the transaction.</p>
+                    {CONTACT_ADMIN}
                 </>;
         }
     }
@@ -77,12 +158,14 @@ class GoalRenderer extends Renderer<PageState, Args> {
                     to: address,
                     data: CLAIM.encodeFunctionData("claim", [n])
                 };
-
-                const success_handler = ()=>{
-                    // TODO
-                }; const error_handler = ()=>{
-                    // TODO
-                }; send_transaction(tx, success_handler, error_handler);
+                
+                this.#with_goal_address(address);
+                this.state_setter(PageState.Sending);
+                send_transaction(
+                    tx, 
+                    (res: TransactionResponse)=>this.#success_handler(res), 
+                    (err)=>this.#error_handler(err)
+                );
             } else {
                 res.json().then((body)=>{
                     if (body.code === undefined) {
@@ -98,14 +181,46 @@ class GoalRenderer extends Renderer<PageState, Args> {
                         case ErrorCodes.Wrong:
                             return this.state_setter(PageState.Wrong);
                         default:
-                            return this.state_setter(PageState.InternalError);
+                            return this.state_setter(PageState.Unexpected);
                     }
                 });
             }
         })
     }
+    #success_handler(res: TransactionResponse) {
+        res.wait().then((receipt)=>{
+            if (!receipt) {
+                return this.state_setter(PageState.NotMined);
+            }
+
+            if (receipt.logs.length === 0) {
+                return this.state_setter(PageState.Ok);   
+            }
+
+            const log = WIN.parseLog(receipt.logs[0]);
+            if (!log) {
+                this.#set_error(receipt.blockNumber);
+            } else {
+                this.state_setter(PageState.Win);
+            }
+        });
+    }
+    #error_handler(err: any) {
+        if (err === undefined || !err || err.reason === undefined) {
+            return this.state_setter(PageState.ErrParseFailed);
+        } 
+
+        switch(err.reason) {
+            case txErrors.cancelled: return this.state_setter(PageState.Cancelled);
+            case txErrors.wrong: return this.state_setter(PageState.Wrong);
+            case txErrors.invalid_level: return this.state_setter(PageState.InvalidLevel);
+            case txErrors.missing: return this.state_setter(PageState.MissingFunds)
+            case txErrors.unauthorized: return this.state_setter(PageState.Unexpected);
+            default: return this.state_setter(PageState.ErrParseFailed);
+        }
+    }
 }
 
 export function initRenderer(state_setter: Setter<PageState>, data: Readonly<Goal[]>) {
-    return new GoalRenderer({state_setter, data});
+    return new GoalRenderer({state_setter, data, err_block_id: null, goal_address: null});
 }
