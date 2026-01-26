@@ -16,68 +16,48 @@ contract TicketBank {
     }
 
     // checks both goal belongs to the hunt, and is correct goal to claim from this user 
-    function is_correct_goal(address user, uint level) private view returns (bool) {
+    function validate_goal(address user, uint level) private view {
         for (uint i = 0; i < goals.length; i++) {
-            if (goals[i] == msg.sender) { return level == granted[user]; }
+            if (goals[i] == msg.sender) { require(level == granted[user], "Invalid level"); return; }
         }
 
         // don't need to worry about non-honest level value since un-authorized goals are rejected
-        return false;
+        revert("Unauthorized");
     }
 
     function upgrade(address user, uint level) external {
-        require(is_correct_goal(user, level));
+        validate_goal(user, level);
         granted[user]++;
     } 
     
     // Game master is trusted to provide correct goal (no duplicates, correct contract instance)
     function authorize_goal(address goal) external {
-        require(msg.sender == gameMaster);
+        require(msg.sender == gameMaster, "Forbidden");
         goals.push(goal);
     }
 
     // captured by API
     event TicketCreated(address user);
-    event AlreadyClaimed(address user, uint level);
-    event UnsufficientFunds(address user, uint value);
 
     // for users to prove an error occured
     function deposit() internal {
+        require(msg.value == entryFee, "Please send the exact entry fee");
+
         uint lvl = granted[msg.sender];
-        if (lvl > 0) {
-            emit AlreadyClaimed(msg.sender, lvl);
-            refund();
-            return;
-        }
-        if (msg.value < entryFee) {
-            emit UnsufficientFunds(msg.sender, msg.value);
-            refund();
-            return;
-        }
+        require(lvl == 0, "Already claimed");
 
         granted[msg.sender] = 1;
         emit TicketCreated(msg.sender);
     }
 
-    event RefundFailed(address user, uint sentAmmount);
-    function refund() internal {
-        (bool success,) = msg.sender.call{value: msg.value}("");
-        if (!success) {
-            emit RefundFailed(msg.sender, msg.value);
-        }
-        return;
-    }
     receive() payable external { deposit(); }
     fallback() payable external { deposit(); }
 
-    event WithdrawFailed(uint available_funds);
     function withdraw() external {
-        require(msg.sender == gameMaster);
+        require(msg.sender == gameMaster, "Forbidden");
 
         address a = address(this);
         (bool success,) = msg.sender.call{value: a.balance}("");
-        if (!success) {
-            emit WithdrawFailed(a.balance);
-        }
+        require(success, "Fail");
     } 
 }

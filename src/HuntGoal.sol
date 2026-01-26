@@ -25,9 +25,6 @@ contract HuntGoal {
     // users can verify a goal is properly funded
     event GoalReady(address goal);
 
-    // notify goal funder
-    event RefundFailed(address funder, uint overflow);
-
     // goal should be funded by GameMaster
     function deposit() internal {
         address g = address(this);
@@ -36,9 +33,7 @@ contract HuntGoal {
         if (g.balance > value) {
             uint overflow = g.balance - value;
             (bool success,) = msg.sender.call{value: overflow}("");
-            if (!success) {
-                emit RefundFailed(msg.sender, overflow);
-            }
+            require(success, "Aborted when trying to refund excess funds");
         }
         
         emit GoalReady(g);
@@ -48,24 +43,33 @@ contract HuntGoal {
 
     // allows users to check if goal is claimed, and ensure winner is not gameMaster himself
     event GoalClaimed(address goal, address winner);
+    event SendFundsFail(address goal, address winner);
 
     // API checks user has ticket first
     // vulnerable to eavstropping + front-running, but this risk is preferred compared to central authority
     // Assumes adversary has no advantage to try front-running every single attempt (as fee is at his charge)
-    function claim(uint nonce) external returns (bool) {
-        require(keccak256(abi.encode(nonce)) == targetHash);
-        bank.upgrade(msg.sender, level); // reverts if user has wrong level
+    function claim(uint nonce) external {
+        address g = address(this);
+        require(g.balance >= value, "Missing funds");
+        require(keccak256(abi.encode(nonce)) == targetHash, "Wrong");
 
+        bank.upgrade(msg.sender, level); // reverts if user has wrong level or goal is malicious
         if (!claimed) {
-            emit GoalClaimed(address(this), msg.sender);
+            claimed = true; // even if this fails, no one other than msg.sender should be able to claim.
             (bool success,) = msg.sender.call{value: value}("");
-            if (success) {
-                claimed = true;
-            }
-            return success;
+
+            if (success) { emit GoalClaimed(g, msg.sender); }
+            else { emit SendFundsFail(g, msg.sender); }
         }
-        return false;
     }
+
+    function send_prize(address winner) external {
+        require(msg.sender == gameMaster, "Forbidden");
+        require(address(this).balance >= value, "Missing funds");
+
+        (bool success,) = winner.call{value: value}("");
+        require(success, "Send failed");
+    } 
 
     // TODO: REMOVE FROM DEPLOYMENT !! Will use developpement
     function set_bank_address(address a) external {

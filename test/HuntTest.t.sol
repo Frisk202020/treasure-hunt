@@ -25,11 +25,11 @@ contract HuntTest is Test {
         assert(success);
     }
     function authorize(address g) private returns (bool) {
-        (bool success,) = ticketBank.call(abi.encodeWithSignature("authorize_goal(address)", g));
-        return success;
+        (bool res,) = ticketBank.call(abi.encodeWithSignature("authorize_goal(address)", g));
+        return res;
     } function claim(address g, uint n) private returns (bool) {
-        (bool success,) = g.call(abi.encodeWithSignature("claim(uint256)", n));
-        return success;
+        (bool res,) = g.call(abi.encodeWithSignature("claim(uint256)", n));
+        return res;
     }
 
     function createUser() public returns (address payable) {
@@ -44,10 +44,9 @@ contract HuntTest is Test {
         vm.prank(user);
 
         // Ensure ticket claim is refused
-        vm.expectEmit(true, true, true, true);
-        emit TicketBank.UnsufficientFunds(user, 8);
-        (bool success,) = ticketBank.call{value: 8}("");
-        assert(success);
+        vm.expectRevert("Please send the exact entry fee");
+        (bool revertsAsExpected,) = ticketBank.call{value: 8}("");
+        assert(revertsAsExpected);
 
         // Ensure user gets refunded
         assertEq(user.balance, FEE);
@@ -70,12 +69,11 @@ contract HuntTest is Test {
 
         // Ensure user can't claim twice
         vm.deal(user, FEE);
-        vm.expectEmit(true,true,true,true);
-        emit TicketBank.AlreadyClaimed(user, 1);
-        (success,) = ticketBank.call{value: FEE}("");
-        assert(success);
+        vm.expectRevert("Already claimed");
+        (bool revertsAsExpected,) = ticketBank.call{value: FEE}("");
+        assert(revertsAsExpected);
 
-        // Ensure user gets refunded
+        // Ensure user gets refunded (tx reverts)
         assertEq(user.balance, FEE);
         assertEq(ticketBank.balance, FEE);
 
@@ -91,43 +89,51 @@ contract HuntTest is Test {
         vm.startPrank(gameMaster); 
         vm.recordLogs();
 
-        (bool s1,) = goal.call{value: 80}("");
-        assert(s1);
+        (bool success,) = goal.call{value: 80}("");
+        assert(success);
         assertEq(vm.getRecordedLogs().length, 0);
         
         vm.expectEmit(true, true, true, true);
         emit HuntGoal.GoalReady(goal);
-        (bool s2,) = goal.call{value: 40}("");
-        assert(s2);
+        (success,) = goal.call{value: 40}("");
+        assert(success);
         assertEq(goal.balance, 100);
         assertEq(gameMaster.balance, 20); // expect overflow to be refunded
     }
 
     function test_claim_goal() public {
-        address g = address(new HuntGoal(0, 1, HASH, gameMaster, ticketBank));
+        vm.deal(gameMaster, 100);
+        vm.prank(gameMaster);
+        (bool success,) = goal.call{value: 100}("");
+        assert(success);
 
+        address malicious = address(new HuntGoal(0, 1, HASH, gameMaster, ticketBank));
         // ensure attacker can't authorize a forged goal
-        assert(!authorize(goal));
+        vm.expectRevert("Forbidden");
+        assert(authorize(goal)); // ensure revert as expected
 
         address user = createUser();
         vm.startPrank(user);
-        (bool success,) = ticketBank.call{value: FEE}("");
+        (success,) = ticketBank.call{value: FEE}("");
         assert(success);
 
-        // ensure a call to unauthorized goal fails (level is ok so the issue is authentification)
-        assert(!claim(g, 0));
+        // ensure a call to unauthorized goal fails
+        vm.expectRevert("Unauthorized");
+        assert(claim(malicious, 0));
 
         // add new goal
-        address g2 = address(new HuntGoal(1, 2, HASH, gameMaster, ticketBank));
+        address g2 = address(new HuntGoal(0, 2, HASH, gameMaster, ticketBank));
         vm.startPrank(gameMaster);
         assert(authorize(g2)); 
 
         // ensure can't claim in wrong order
         vm.startPrank(user);
-        assert(!claim(g2, 0));
+        vm.expectRevert("Invalid level");
+        assert(claim(g2, 0));
 
         // ensure can't claim with invalid nonce
-        assert(!claim(goal, 1));
+        vm.expectRevert("Wrong");
+        assert(claim(goal, 1));
 
         // ensure correct claim order works
         vm.deal(goal, 100);
@@ -150,7 +156,7 @@ contract HuntTest is Test {
         assert(success);
 
         vm.recordLogs();
-        success = claim(g, 0);
+        success = claim(goal, 0);
         assertEq(u2.balance, 0);
         assertEq(vm.getRecordedLogs().length, 0); 
     }
