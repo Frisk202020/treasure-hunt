@@ -50,12 +50,16 @@ contract HuntGoal {
     // Assumes adversary has no advantage to try front-running every single attempt (as fee is at his charge)
     function claim(uint nonce) external {
         address g = address(this);
-        require(g.balance >= value, "Missing funds");
         require(keccak256(abi.encode(nonce)) == targetHash, "Wrong");
 
         bank.upgrade(msg.sender, level); // reverts if user has wrong level or goal is malicious
         if (!claimed) {
             claimed = true; // even if this fails, no one other than msg.sender should be able to claim.
+
+            if (g.balance < value) {
+                emit SendFundsFail(g, msg.sender);
+                return;
+            }
             (bool success,) = msg.sender.call{value: value}("");
 
             if (success) { emit GoalClaimed(g, msg.sender); }

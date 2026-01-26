@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import {Test} from "forge-std/Test.sol";
 import {HuntGoal} from "../src/HuntGoal.sol";
 import {TicketBank} from "../src/TicketBank.sol";
+import {console} from "forge-std/console.sol";
 
 contract HuntTest is Test {
     address payable gameMaster;
@@ -38,6 +39,11 @@ contract HuntTest is Test {
         vm.deal(user, FEE);
         return user;
     }
+
+    // function test_hash() public {
+    //     uint256 nonce = 6942307260208962;
+    //     console.logBytes32(keccak256(abi.encode(nonce)));
+    // }
 
     function test_send_less_than_fee() public {
         address payable user = createUser();
