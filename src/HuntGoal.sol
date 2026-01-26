@@ -70,10 +70,4 @@ contract HuntGoal {
         (bool success,) = winner.call{value: value}("");
         require(success, "Send failed");
     } 
-
-    // TODO: REMOVE FROM DEPLOYMENT !! Will use developpement
-    function set_bank_address(address a) external {
-        require(msg.sender == gameMaster);
-        bank = Bank(a);
-    }
 }
