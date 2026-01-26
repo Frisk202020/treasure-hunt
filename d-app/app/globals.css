@@ -176,7 +176,7 @@ button {
   cursor: pointer;
 }
 
-.box {
+.tx-box {
   border-radius: 10px;
   border: 2px white solid;
   background-color: #383737;
