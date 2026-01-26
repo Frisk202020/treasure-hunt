@@ -15,15 +15,15 @@ interface Args {
 } 
 const CLAIM = new Interface(["function claim(uint256 nonce)"]);
 const WIN = new Interface(["event GoalClaimed(address goal, address winner)"]);
+const FUNDS_FAILED = new Interface(["event SendFundsFail(address goal, address winner)"]);
 const PROCEED = <p>You can now proceed to the next level !</p>;
 const CONTACT_ADMIN = <p>Please contact the administrator.</p>;
 
 const txErrors = {
     cancelled: "rejected",
     wrong: "Wrong",
-    invalid_level: "Invalid id",
+    invalid_level: "Invalid level",
     unauthorized: "Unauthorized",
-    missing: "Missing funds"
 };
 
 class GoalRenderer extends Renderer<PageState, Args> {
@@ -54,14 +54,14 @@ class GoalRenderer extends Renderer<PageState, Args> {
         r.#goal_address = addr;
         this.self_setter(r);
     }
-    #set_error(id: number | null) {
+    #set_error(id: number | null, state: PageState) {
         if (!this.provider || !this.self_setter || !this.signer) {
             return this.state_setter(PageState.InternalError);
         }
 
         const r = this.with_signer(this.signer);
         r.#err_block_id = id;
-        this.self_setter(r); this.state_setter(PageState.ParseFailed);
+        this.self_setter(r); this.state_setter(state);
     }
     get claim_form() {
         return <GoalForm len={this.#data.length} handler={(data: FormData)=>this.#form_handler(data)}></GoalForm>
@@ -126,8 +126,9 @@ class GoalRenderer extends Renderer<PageState, Args> {
                 return <p className="error">Can't send the transaction, but failed to parse the error.</p>;
             case PageState.MissingFunds:
                 return <>
-                    <p className="error">You got the right answer but we failed to send you the funds.</p>
+                    <p className="error">Goal claimed but we failed to send you the funds.</p>
                     {CONTACT_ADMIN}
+                    <p>You still unlocked access to the next level</p>
                 </>;
             case PageState.Unexpected:
                 return <>
@@ -199,7 +200,8 @@ class GoalRenderer extends Renderer<PageState, Args> {
 
             const log = WIN.parseLog(receipt.logs[0]);
             if (!log) {
-                this.#set_error(receipt.blockNumber);
+                const log = FUNDS_FAILED.parseLog(receipt.logs[0]);
+                this.#set_error(receipt.blockNumber, log == null ? PageState.ParseFailed : PageState.MissingFunds);
             } else {
                 this.state_setter(PageState.Win);
             }
@@ -210,11 +212,11 @@ class GoalRenderer extends Renderer<PageState, Args> {
             return this.state_setter(PageState.ErrParseFailed);
         } 
 
+        console.log(err);
         switch(err.reason) {
             case txErrors.cancelled: return this.state_setter(PageState.Cancelled);
             case txErrors.wrong: return this.state_setter(PageState.Wrong);
             case txErrors.invalid_level: return this.state_setter(PageState.InvalidLevel);
-            case txErrors.missing: return this.state_setter(PageState.MissingFunds)
             case txErrors.unauthorized: return this.state_setter(PageState.Unexpected);
             default: return this.state_setter(PageState.ErrParseFailed);
         }
