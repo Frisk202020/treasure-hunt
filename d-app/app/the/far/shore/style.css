@@ -67,3 +67,22 @@ input[type=text] {
     display: flex;
     justify-content: center;
 }
+
+.holy-screen {
+    width: 0vw; height: 0vw;
+    background-image: linear-gradient(to top right, #ff0000 30%, #00ff00 50%, #0000ff);
+    animation: holy-grow 3s forwards, holy-color 3s forwards;
+    margin: 0px !important;
+    position: absolute;
+    left: 50%; top: 50%;
+    z-index: 3;
+    border-radius: 100%;
+
+}
+ 
+@keyframes holy-grow {
+    0% {height: 0vh; width: 0vw;}
+    100% {height: 150vw; width: 150vw; left: -25%; top: -75%}
+} @keyframes holy-color {
+    to { transform: rotate(720deg); }
+}

@@ -5,7 +5,7 @@ export default function Runes() {
     return [
         {name: "prelude", left: 5, top: 25, twist: -30},
         {name: "following", left: 2, top: 40, twist: 5},
-        {name: "holy", left: 10, top: 90, twist: -70},
+        {name: "holy", left: 10, top: 80, twist: -70},
         {name: "first", left: -5, top: 30, twist: 180},
         {name: "second", left: -3, top: 40, twist: 0},
         {name: "last", left: -5, top: 70, twist: 90}

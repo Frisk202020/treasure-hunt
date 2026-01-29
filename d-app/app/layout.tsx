@@ -30,10 +30,10 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Client children={children} navId={NAV_ID}></Client>
         <div id={NAV_ID}>
-          <a href=".">Home</a>
-          <a href="join">Join the Hunt</a>
-          <a href="goals">Claim a Hunt goal</a>
-          <a href="hints">Hints</a>
+          <a href="/">Home</a>
+          <a href="/join">Join the Hunt</a>
+          <a href="/goals">Claim a Hunt goal</a>
+          <a href="/hints">Hints</a>
         </div>
       </body>
     </html>
