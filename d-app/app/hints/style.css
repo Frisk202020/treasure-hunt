@@ -1,0 +1,47 @@
+.icon-container {
+    width: 6vw; height: 6vw;
+    padding: 0.5vw;
+    border: 3px solid white;
+    border-radius: 100%;
+    margin: 3vw !important;
+    display: flex; justify-content: center; align-items: center;
+} .icon {
+    width: 80%; margin: 0px !important; height: 80%;
+} .icon-enabled {
+    animation: rotate 1.5s forwards;
+} @keyframes rotate {
+    0% { transform: rotate(0deg); }
+    33% { transform: rotate(40deg); }
+    100% { transform: rotate(-20deg); }
+}
+
+.wrapper {
+    border-color: white;
+    border-radius: 10px;
+    border-style: solid;
+    height: fit-content;
+} .wrapper:hover {
+    cursor: pointer;
+} .enabled {
+    border-width: 2px;
+    animation: grow 1.5s forwards;
+} @keyframes grow {
+    0% { width: 12vw; }
+    100% { width: 80vw; }
+}
+
+.data {
+    display: grid;
+    grid-template-rows: 0fr;
+} .d-activate {
+    transition: grid-template-rows 1s;
+    grid-template-rows: 1fr;
+} .data > div {
+    overflow: hidden;
+}
+
+.title {
+    animation: show 1s forwards;
+} @keyframes show {
+    from { opacity: 0; } to { opacity: 1; }
+}

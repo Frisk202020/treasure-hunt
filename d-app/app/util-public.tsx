@@ -103,3 +103,11 @@ export interface TransactionParams {
         <p>Value: {value} wei</p>
     </div>;
 } 
+
+export function setAndRebuild<T>(from: T[], x: T, i: number): T[] {
+    if (i >= from.length) { throw new ReferenceError("Out of bounds"); }
+
+    const clone = Array.from(from);
+    clone[i] = x;
+    return clone;
+}

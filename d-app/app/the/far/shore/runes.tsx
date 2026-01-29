@@ -1,7 +1,8 @@
+import { setAndRebuild } from "@/app/util-public";
 import { useState } from "react";
 
 export default function Runes() {
-    const [classes, setClasses] = useState(Array(6).fill(""));
+    const [classes, setClasses] = useState(Array<string>(6).fill(""));
     return [
         {name: "prelude", left: 5, top: 25, twist: -30},
         {name: "following", left: 2, top: 40, twist: 5},
@@ -19,14 +20,8 @@ export default function Runes() {
         }} 
         src={`/${params.name}.png`} 
         key={params.name}
-        onMouseEnter={()=>setClasses(setClass(classes, "appear", i))}
-        onMouseLeave={()=>setClasses(setClass(classes, "disappear", i))}
+        onMouseEnter={()=>setClasses(setAndRebuild(classes, "appear", i))}
+        onMouseLeave={()=>setClasses(setAndRebuild(classes, "disappear", i))}
         >
     </img>);
-}
-
-function setClass(from: string[], className: string, index: number) {
-    const clone = Array.from(from);
-    clone[index] = className;
-    return clone; 
 }
