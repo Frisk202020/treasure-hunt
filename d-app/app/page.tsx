@@ -1,6 +1,8 @@
 import { getData } from "./actions";
 import "./globals.css";
 
+// TODO - CRITICAL : store key digest in hot storage (data.json) instead of plaintext key
+
 // TODO - /goals route
 // TODO - /hints route
 // TODO - rework /join

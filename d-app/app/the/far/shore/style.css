@@ -1,0 +1,69 @@
+#screen {
+    width: 100vw;
+    height: 100vh;
+    background-color: white;
+    z-index: 1;
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    pointer-events: none
+} .inactive {
+    opacity: 0;
+} .active {
+    animation: transition-forward 1s forwards;
+} .de-active {
+    animation: transition-backwards 1s forwards;
+}
+
+.margin {
+    margin-top: 10vh !important;
+}
+
+.bg {
+    width: 100vw;
+    height: 100vh;
+    background-image: linear-gradient(to top right, black, #1e1b1b 60%, #462c02);
+}
+
+html {
+    height: 100vh;
+    overflow-y: hidden;
+}
+
+@keyframes transition-forward {
+    0% { opacity: 0; } 100% { opacity: 1; }
+} @keyframes transition-backwards {
+    0% { opacity: 1; } 100% { opacity: 0; }
+}
+
+#tower {
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    position: absolute;
+    bottom: 0px; left: 0px;
+    margin: 0px;
+} #tower-img {
+    height: 70vh;
+    margin: 0px !important;
+} .riddle {
+    height: 20px; width: fit-content;
+    position: absolute;
+    border-radius: 20px;
+    background-image: radial-gradient(#f6f5f5 0%, #f6f5f500 100%);
+    opacity: 0;
+} .appear {
+    animation: transition-forward 1s forwards;
+} .disappear {
+    animation: transition-backwards 1s forwards;
+}
+
+input[type=text] {
+    width: 60vw;
+}
+
+.center {
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+}

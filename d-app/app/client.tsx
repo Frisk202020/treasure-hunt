@@ -6,7 +6,10 @@ export default function Client(args: Args) {
 
     useEffect(()=>{
         const handler = ()=>{
-            const style = window.getComputedStyle(document.getElementById(args.navId)!).height;
+            const elm = document.getElementById(args.navId);
+            if (!elm) { return; }
+            
+            const style = window.getComputedStyle(elm).height;
             setHeight(style);
         }; handler();
 

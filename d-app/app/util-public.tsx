@@ -44,6 +44,10 @@ export class Data {
     checkNonce(id: number, nonce: number) {
         return this.#goals[id].key === nonce;
     }
+
+    getNonce(id: number): number | undefined {
+        return this.#goals[id].key;
+    }
 }
 
 interface RichGoal {
