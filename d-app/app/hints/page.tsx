@@ -23,17 +23,25 @@ export default function Page() {
         <h1 className="rainbow">Need some help ?</h1>
         <p>Here you can find some guidelines to help you find <span className="rainbow">Hunt goal</span> keys.</p>
         {GOAL_DATA.map((x,i)=>{
-           return <div className={`wrapper ${wrapper_classes[i]}`} key={x.icon} onClick={()=>{
-                    setWClasses(setAndRebuild(wrapper_classes, "enabled", i)); setIClasses(setAndRebuild(icon_classes, "icon-enabled", i));
-                    new Promise((r)=>setTimeout(r, ANIMATION_TIME)).then(()=>{
-                        setEnabled(setAndRebuild(data_enabled, true, i));
-                    });
-                }}>
+           return <div className={`wrapper ${wrapper_classes[i]}`} key={x.icon}>
                 <div style={{display: "flex", flexDirection: "row"}}>
-                    <div className={`icon-container ${icon_classes[i]}`}>
+                    <div className={`icon-container ${icon_classes[i]}`} onClick={()=>{
+                        if (data_enabled[i]) { return; }
+
+                        setWClasses(setAndRebuild(wrapper_classes, "enabled", i)); setIClasses(setAndRebuild(icon_classes, "icon-enabled", i));
+                        new Promise((r)=>setTimeout(r, ANIMATION_TIME)).then(()=>{
+                            setEnabled(setAndRebuild(data_enabled, true, i));
+                        });
+                    }}>
                         <img src={`/${x.icon}.png`} className="icon"></img>
                     </div>
-                    {data_enabled[i] ? <p style={{display: "grid", alignItems: "center"}} className="title">{x.title}</p> : <></>}
+                    {data_enabled[i] 
+                        ? <div style={{display: "flex", flexDirection:"row", alignItems:"center"}} className="title">
+                            <p className="gold">Goal {i+1}</p>
+                            <p>: {x.title}</p>
+                        </div> 
+                        : <></>
+                    }
                 </div>
                 {data_enabled[i] ? <div className={`data ${data_classes[i]}`}>{x.data({
                     set: setDClasses, from: data_classes, index: i

@@ -44,11 +44,6 @@ class JoinRenderer extends Renderer<PageState> {
                 return <>
                     <p>To join the hunt, you'll need a <span className="rainbow">Hunt ticket</span>.</p>
                     <p>The hunt has an entry fee of <span className="gold">10</span>  Wei.</p>
-                </>;
-            case PageState.NoMetaMask:
-                return <>
-                    <p>To join the hunt, you'll need a <span className="rainbow">Hunt ticket</span>.</p>
-                    <p>The hunt has an entry fee of <span className="gold">10</span>  Wei.</p>
                     {SHARED_STATES.noMetaMask}
                 </>;
             case PageState.MetaMaskPending:

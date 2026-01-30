@@ -9,6 +9,8 @@
     width: 80%; margin: 0px !important; height: 80%;
 } .icon-enabled {
     animation: rotate 1.5s forwards;
+} .icon-enabled:hover {
+    cursor: default !important;
 } @keyframes rotate {
     0% { transform: rotate(0deg); }
     33% { transform: rotate(40deg); }
@@ -20,7 +22,7 @@
     border-radius: 10px;
     border-style: solid;
     height: fit-content;
-} .wrapper:hover {
+} .icon-container:hover {
     cursor: pointer;
 } .enabled {
     border-width: 2px;

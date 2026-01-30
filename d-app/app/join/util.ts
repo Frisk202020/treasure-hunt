@@ -1,6 +1,5 @@
 export enum PageState {
     Default,
-    NoMetaMask,
     MetaMaskPending,
     MetaMaskConnected,
     Canceled,

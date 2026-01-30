@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Treasure Hunt",
-  description: "An puzzle-solving game accross the internet held on the Ethereum blockchain",
+  description: "A puzzle-solving game accross the internet held on the Ethereum blockchain",
 };
 
 const NAV_ID = "navigation";
@@ -32,7 +32,7 @@ export default function RootLayout({
         <div id={NAV_ID}>
           <a href="/">Home</a>
           <a href="/join">Join the Hunt</a>
-          <a href="/goals">Claim a Hunt goal</a>
+          <a href="/goals">Claim a Hunt Goal</a>
           <a href="/hints">Hints</a>
         </div>
       </body>
