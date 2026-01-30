@@ -1,9 +1,10 @@
 "use client"
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import Gate from "./gate";
+import "../../../globals.css";
 
 export default function TheFarShore() {
-    return <Suspense fallback={<p>Loading...</p>}>
+    return <Suspense fallback={<div className="main">Loading...</div>}>
         <Gate></Gate>
     </Suspense>
 }
