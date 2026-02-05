@@ -21,7 +21,7 @@ export default function Page() {
 
     return <div id="main">
         <h1 className="rainbow">Need some help ?</h1>
-        <p>Here you can find some guidelines to help you find <span className="rainbow">Hunt goal</span> keys.</p>
+        <p>Here you can find some guidelines to <a href="https://gamehub-i1v3.onrender.com">help</a> you find <span className="rainbow">Hunt goal</span> keys.</p>
         {GOAL_DATA.map((x,i)=>{
            return <div className={`wrapper ${wrapper_classes[i]}`} key={x.icon}>
                 <div style={{display: "flex", flexDirection: "row"}}>
