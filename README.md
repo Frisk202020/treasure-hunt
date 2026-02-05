@@ -17,7 +17,7 @@ We built two tokens which have different purposes. We'll describe each shortly.
 
 ## The App
 
-Users are meant to interact with these tokens through the [dApp](https://treasure-hunt-8pjo.onrender.com/). The hunt handles the case where users bypass the app, it is only a convinience tool. This app features :
+Users are meant to interact with these tokens through the [dApp](https://treasure-hunt-ekmz.onrender.com). The hunt handles the case where users bypass the app, it is only a convinience tool. This app features :
 - **Abstraction of blockchain work** (transactions) : to this end, the app requires to interact with a user's [Metamask](https://metamask.io/) wallet. Abstractions are both for users (claim ticket / goals) **and the organizer**. Indeed, prior to the hunt he can fund and authorize goals, and after the hunt is launched he can collect ticket fees (sent to the `Ticket Bank`).
 - **Integrity of goals** : only official goals (emitted by organizer) are available to claim through the app.
 - **Prevent useless transactions** : the app checks keys before doing any transactions on the blockchain, which allows to check answers for free.
