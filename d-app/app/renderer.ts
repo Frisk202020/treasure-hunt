@@ -21,8 +21,6 @@ export default abstract class Renderer<PageState, Args=PageState> {
         const r = new (
             this.constructor as Constructor<this, Args>
         )(this.args());
-        console.log(this.args());
-        console.log(r.state_setter);
         r.provider = p; r.self_setter = s;
         return r;
     }

@@ -1,6 +1,6 @@
 import { Interface, TransactionResponse } from "ethers";
 import { PageState } from "./util";
-import { BANK_ADDRESS, send_transaction, Setter, SHARED_STATES, TransactionParams, tx_box } from "../util-public";
+import { send_transaction, Setter, SHARED_STATES, TransactionParams, tx_box } from "../util-public";
 import { JSX } from "react";
 import "../globals.css";
 import Renderer from "../renderer";
@@ -73,7 +73,7 @@ class JoinRenderer extends Renderer<PageState, Args> {
             case PageState.TicketClaimPending:
                 return <>
                     <p>Claiming ticket for address <span className="gold">{this.signer!.address}</span>...</p>
-                    {tx_box(this.signer!.address, BANK_ADDRESS, FEE)}
+                    {tx_box(this.signer!.address, this.#bank, FEE)}
                 </>;
             case PageState.TicketClaimed:
                 return <p><span className="gold">Ticket claimed successfully !</span> Good luck !</p>;
@@ -111,7 +111,7 @@ class JoinRenderer extends Renderer<PageState, Args> {
 
         const tx: TransactionParams = {
             signer: this.signer!,
-            to: BANK_ADDRESS,
+            to: this.#bank,
             value: FEE
         };
         send_transaction(
@@ -121,6 +121,7 @@ class JoinRenderer extends Renderer<PageState, Args> {
         );
     }
     #success_handler(res: TransactionResponse) {
+        console.log(res);
         this.state_setter(PageState.TicketClaimPending);
         res.wait().then((receipt)=>{
             if (receipt == null) {
@@ -143,6 +144,8 @@ class JoinRenderer extends Renderer<PageState, Args> {
         });
     }
     #error_handler(err: any){
+        console.log(this.#bank);
+        console.log(err);
         if (err === undefined || !err || err.reason === undefined) {
             return this.state_setter(PageState.ParseLogFailed);
         }

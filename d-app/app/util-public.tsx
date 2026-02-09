@@ -4,7 +4,6 @@ import { TransactionRequest } from "ethers";
 import { BrowserProvider } from "ethers";
 import { Dispatch, SetStateAction } from "react";
 
-export const BANK_ADDRESS = "";
 const CHAIN_ID = 11155111;
 
 export const SHARED_STATES = {
