@@ -4,7 +4,7 @@ import { TransactionRequest } from "ethers";
 import { BrowserProvider } from "ethers";
 import { Dispatch, SetStateAction } from "react";
 
-export const BANK_ADDRESS = "0x02FE1535E1B3394D4292FDfce12648198F0bc7E1";
+export const BANK_ADDRESS = "";
 const CHAIN_ID = 11155111;
 
 export const SHARED_STATES = {
@@ -25,13 +25,17 @@ export function unwrap_or<T>(fallback: T, x: T | undefined | null) {
 }
 
 export class Data {
+    #bank: string;
     #goals: RichGoal[];
 
-    constructor(goals: RichGoal[]) { 
+    constructor(bank: string, goals: RichGoal[]) { 
+        this.#bank = bank;
         this.#goals = goals;
     }
 
-    get goals(): Readonly<Goal[]> {
+    get bank(): string {
+        return this.#bank;
+    } get goals(): Readonly<Goal[]> {
         return this.#goals.map((x)=>{return {address: x.address, value: x.value}});
     }
 

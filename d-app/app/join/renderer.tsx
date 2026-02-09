@@ -12,17 +12,23 @@ const txErrors = {
     unsufficient: "Please send the exact entry fee"
 }; const FEE = 10;
 
-class JoinRenderer extends Renderer<PageState> {
+interface Args {
+    state_setter: Setter<PageState>,
+    bank: string
+}
+
+class JoinRenderer extends Renderer<PageState, Args> {
+    #bank: string;
     #fatal_block_id: number | null;
 
-    constructor(state_setter: Setter<PageState>) {
-        super(state_setter);
+    constructor(args: Args) {
+        super(args.state_setter); this.#bank = args.bank;
         this.#fatal_block_id = null;
     }
     protected get connected_state() {
         return PageState.MetaMaskConnected;
     } protected args() {
-        return this.state_setter;
+        return {state_setter: this.state_setter, bank: this.#bank};
     } protected fallback(): void {
         this.state_setter(PageState.InternalError);
     }
@@ -155,6 +161,6 @@ class JoinRenderer extends Renderer<PageState> {
     }
 }
 
-export default function initRenderer(stateSetter: Setter<PageState>) {
-    return new JoinRenderer(stateSetter);
+export default function initRenderer(args: Args) {
+    return new JoinRenderer(args);
 }

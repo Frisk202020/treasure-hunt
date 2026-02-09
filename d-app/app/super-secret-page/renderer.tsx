@@ -1,16 +1,15 @@
 import { TransactionResponse, Interface } from "ethers";
-import { BANK_ADDRESS, Goal, send_transaction, Setter, SHARED_STATES, TransactionParams } from "../util-public";
+import { Goal, send_transaction, Setter, SHARED_STATES, TransactionParams } from "../util-public";
 import { JSX } from "react";
 import { PageState } from "./util";
 import "../globals.css";
 import Renderer from "../renderer";
 
-// TODO : may allow multi-goal authorization / funding for less tx fee
-
 const WITHDRAW = new Interface(["function withdraw()"]).encodeFunctionData("withdraw");
 const AUTHORIZE_INTERFACE = new Interface(["function authorize_goal(address)"]);
 interface Args {
-    state_setter: Setter<PageState>,
+    state_setter: Setter<PageState>
+    bank: string;
     data: Readonly<Goal[]>;
 }
 const txErrors = {
@@ -19,17 +18,22 @@ const txErrors = {
 }
 
 class SecretRenderer extends Renderer<PageState, Args> {
+    #bank: string;
     #data: Readonly<Goal[]>;
 
     constructor(args: Args) {
-        super(args.state_setter); this.#data = args.data;
+        super(args.state_setter); this.#data = args.data; this.#bank = args.bank;
     } protected args() {
-        return {state_setter: this.state_setter, data: this.#data};
+        return {state_setter: this.state_setter, bank: this.#bank, data: this.#data};
     } protected get connected_state(): PageState {
         return PageState.Connected;
     } protected fallback(): void {
         this.state_setter(PageState.InternalError);
     } get #goal_buttons() {
+        return this.#data.map((x, i)=>
+            <button key={`goal:${i}`} onClick={()=>this.#fund_goal(x)}>Fund goal {i+1}</button>
+        );
+    } get #authorize_buttons() {
         return this.#data.map((x, i)=>
             <button key={`goal:${i}`} onClick={()=>this.#fund_goal(x)}>Fund goal {i+1}</button>
         );
@@ -44,24 +48,9 @@ class SecretRenderer extends Renderer<PageState, Args> {
                 {this.#goal_buttons}
             </div>
             <p className="more-margin">Oh, and you can also authorize a new <span className="rainbow">Hunt Goal</span>.</p>
-            <form>
-                <input placeholder="Goal address (0x...)" type="text" name="address"></input>
-                <input type="submit" formAction={(formData)=>{
-                    const address = formData.get("address");
-                    if (!address) { this.state_setter(PageState.InvalidForm); return; }
-                    
-                    const tx: TransactionParams = {
-                        signer: this.signer!,
-                        to: BANK_ADDRESS,
-                        data: AUTHORIZE_INTERFACE.encodeFunctionData("authorize_goal", [address])
-                    };
-                    send_transaction(
-                        tx, 
-                        (res: TransactionResponse)=>this.#success_handler(res, PageState.Authorized), 
-                        (err)=>this.#error_handler(err)
-                    );
-                }}></input>
-            </form>
+            <div className="goals" style={{display: "flex", justifyContent: "space-evenly"}}>
+                {this.#authorize_buttons}
+            </div>
         </>;
 
         switch (state) {
@@ -91,11 +80,6 @@ class SecretRenderer extends Renderer<PageState, Args> {
                 return <p className="gold">Goal funded !</p>
             case PageState.Pending:
                 return SHARED_STATES.pending;
-            case PageState.InvalidForm:
-                return <>
-                    <p className="error">ERROR: Invalid goal information</p>
-                    <button onClick={()=>this.state_setter(PageState.Connected)}>Retry</button>
-                </>;
             case PageState.Authorized:
                 return <>
                     <p className="gold">Goal authorized successfully !</p>
@@ -110,12 +94,24 @@ class SecretRenderer extends Renderer<PageState, Args> {
     #claim() {
         const tx: TransactionParams = {
             signer: this.signer!,
-            to: BANK_ADDRESS,
+            to: this.#bank,
             data: WITHDRAW
         };
         send_transaction(
             tx, 
             (res: TransactionResponse)=>this.#success_handler(res, PageState.Claimed), 
+            (err)=>this.#error_handler(err)
+        );
+    }
+    #authorize(goal: Goal) {
+        const tx: TransactionParams = {
+            signer: this.signer!,
+            to: goal.address,
+            data: AUTHORIZE_INTERFACE.encodeFunctionData("authorize_goal", [goal.address])
+        };
+        send_transaction(
+            tx, 
+            (res: TransactionResponse)=>this.#success_handler(res, PageState.Funded), 
             (err)=>this.#error_handler(err)
         );
     }
@@ -155,6 +151,6 @@ class SecretRenderer extends Renderer<PageState, Args> {
     }
 }
 
-export function initRenderer(state_setter: Setter<PageState>, data: Readonly<Goal[]>) {
-    return new SecretRenderer({state_setter, data});
+export function initRenderer(state_setter: Setter<PageState>, data: Readonly<Goal[]>, bank: string) {
+    return new SecretRenderer({state_setter, data, bank});
 } 

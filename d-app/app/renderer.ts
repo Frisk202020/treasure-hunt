@@ -3,7 +3,7 @@ import { Setter } from "./util-public";
 
 type Constructor<T, Args> = new (args: Args) => T;
 
-export default abstract class Renderer<PageState, Args = Setter<PageState>> {
+export default abstract class Renderer<PageState, Args=PageState> {
     protected state_setter: Setter<PageState>;
     protected self_setter: Setter<this> | null;
     protected provider: BrowserProvider | null;
@@ -21,6 +21,8 @@ export default abstract class Renderer<PageState, Args = Setter<PageState>> {
         const r = new (
             this.constructor as Constructor<this, Args>
         )(this.args());
+        console.log(this.args());
+        console.log(r.state_setter);
         r.provider = p; r.self_setter = s;
         return r;
     }

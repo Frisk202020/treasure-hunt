@@ -11,7 +11,7 @@ export default async function SuperSecretPage() {
         <div id="main">
             <p>Hello organizer, here you can withdraw all funds from the <span className="gold">Ticket bank</span></p>
             <p>If you're not the organizer, you're kindly asked to get out :)</p>
-            <Client goals={data.goals}></Client>
+            <Client bank={data.bank} goals={data.goals}></Client>
         </div>
     </>;
 }

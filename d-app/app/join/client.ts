@@ -4,9 +4,13 @@ import { PageState } from "./util";
 import { ask_metamask } from "../util-public";
 import initRenderer from "./renderer";
 
-export default function Client() {
+interface Args {
+    bank: string
+}
+export default function Client(args: Args) {
+
     const [state, setState] = useState(PageState.Default);
-    const [renderer, setRenderer] = useState(initRenderer(setState));
+    const [renderer, setRenderer] = useState(initRenderer({state_setter: setState, bank: args.bank}));
 
     useEffect(()=>{
         const provider = ask_metamask();
