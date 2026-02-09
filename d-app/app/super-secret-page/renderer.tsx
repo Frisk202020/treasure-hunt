@@ -92,7 +92,6 @@ class SecretRenderer extends Renderer<PageState, Args> {
     }
 
     #claim() {
-        console.log(this.#bank);
         const tx: TransactionParams = {
             signer: this.signer!,
             to: this.#bank,
@@ -137,7 +136,6 @@ class SecretRenderer extends Renderer<PageState, Args> {
         this.state_setter(PageState.Pending);
     }
     #error_handler(err: any) {
-        console.log(err);
         if (err === undefined || !err || err.reason === undefined) {
             return this.state_setter(PageState.Error);
         }

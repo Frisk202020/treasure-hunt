@@ -121,7 +121,6 @@ class JoinRenderer extends Renderer<PageState, Args> {
         );
     }
     #success_handler(res: TransactionResponse) {
-        console.log(res);
         this.state_setter(PageState.TicketClaimPending);
         res.wait().then((receipt)=>{
             if (receipt == null) {
@@ -144,12 +143,9 @@ class JoinRenderer extends Renderer<PageState, Args> {
         });
     }
     #error_handler(err: any){
-        console.log(this.#bank);
-        console.log(err);
         if (err === undefined || !err || err.reason === undefined) {
             return this.state_setter(PageState.ParseLogFailed);
         }
-        console.log(err);
 
         switch(err.reason) {
             case txErrors.cancelled:
