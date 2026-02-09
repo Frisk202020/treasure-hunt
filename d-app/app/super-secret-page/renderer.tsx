@@ -35,7 +35,7 @@ class SecretRenderer extends Renderer<PageState, Args> {
         );
     } get #authorize_buttons() {
         return this.#data.map((x, i)=>
-            <button key={`goal:${i}`} onClick={()=>this.#fund_goal(x)}>Fund goal {i+1}</button>
+            <button key={`goal:${i}`} onClick={()=>this.#authorize(x)}>Fund goal {i+1}</button>
         );
     }
 
@@ -92,6 +92,7 @@ class SecretRenderer extends Renderer<PageState, Args> {
     }
 
     #claim() {
+        console.log(this.#bank);
         const tx: TransactionParams = {
             signer: this.signer!,
             to: this.#bank,
@@ -136,6 +137,7 @@ class SecretRenderer extends Renderer<PageState, Args> {
         this.state_setter(PageState.Pending);
     }
     #error_handler(err: any) {
+        console.log(err);
         if (err === undefined || !err || err.reason === undefined) {
             return this.state_setter(PageState.Error);
         }
